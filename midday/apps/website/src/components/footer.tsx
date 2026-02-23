@@ -120,12 +120,12 @@ export function Footer() {
                   { href: "/story", label: "Story", external: false },
                   { href: "/updates", label: "Updates", external: false },
                   {
-                    href: "https://x.com/middayai",
+                    href: "https://x.com/dxai",
                     label: "X / Twitter",
                     external: true,
                   },
                   {
-                    href: "https://www.linkedin.com/company/midday-ai",
+                    href: "https://www.linkedin.com/company/dx-ai",
                     label: "LinkedIn",
                     external: true,
                   },
@@ -264,7 +264,7 @@ export function Footer() {
         {/* Bottom Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <Link
-            href="https://midday.openstatus.dev/"
+            href="https://dx.openstatus.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden md:flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -288,7 +288,7 @@ export function Footer() {
             </div>
           </Link>
           <p className="font-sans text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Midday Labs AB. All rights reserved.
+            © {new Date().getFullYear()} DX Labs AB. All rights reserved.
           </p>
         </div>
       </div>
@@ -307,7 +307,7 @@ export function Footer() {
             color: "hsl(var(--secondary))",
           }}
         >
-          midday
+          dx
         </h1>
       </div>
     </footer>

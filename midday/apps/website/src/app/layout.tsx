@@ -34,17 +34,17 @@ const hedvigSerif = Hedvig_Letters_Serif({
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "Run your business finances without manual work | Midday",
-    template: "%s | Midday",
+    default: "Enhance Your Development Experience | DX",
+    template: "%s | DX",
   },
   description:
-    "Midday gives you one place for transactions, receipts, invoices and everything around your business finances without manual work.",
+    "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
   openGraph: {
-    title: "Run your business finances without manual work | Midday",
+    title: "Enhance Your Development Experience | DX",
     description:
-      "Midday gives you one place for transactions, receipts, invoices and everything around your business finances without manual work.",
+      "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
     url: baseUrl,
-    siteName: "Midday",
+    siteName: "DX",
     locale: "en_US",
     type: "website",
     images: [
@@ -61,9 +61,9 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    title: "Run your business finances without manual work | Midday",
+    title: "Enhance Your Development Experience | DX",
     description:
-      "Midday gives you one place for transactions, receipts, invoices and everything around your business finances without manual work.",
+      "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
     images: [
       {
         url: "https://cdn.midday.ai/opengraph-image-v1.jpg",
@@ -109,7 +109,7 @@ const jsonLd = {
     "https://linkedin.com/company/midday-ai",
   ],
   description:
-    "Midday gives you one place for transactions, receipts, invoices and everything around your business finances without manual work.",
+    "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
 };
 
 export default function Layout({ children }: { children: ReactElement }) {
