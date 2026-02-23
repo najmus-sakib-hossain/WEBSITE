@@ -8,8 +8,8 @@ A tool that uses Rust programming language, not NodeJs useless trash to save tok
 
 Not only that, DX saves tokens on every tool calling as it uses the DX serializer, which saves 70-90% of tokens rather than the bloated JSON. Also DX literally uses all of the techniques to save tokens here and there. And not only that, DX has extensions for literally every production-level software:
 1. It has a browser extension.
-2. It has an editor and id extension.
-3. It has video editor extensions like photostat, gaptcut, wgresolve, and filmicart.
+2. It has an editor and ide extension.
+3. It has video editor extensions like premierpro, capcut, davinci resolve, and filmicpro.
 4. It has plugins for any image software like Photoshop, Adobe, and Affinity, and literally any other professional-grade apps have the support extensions for DX so that they can have the powers of DX everywhere.
 We also have apps for Android, iOS, Mac, Linux, and Windows apps operating system.
 
