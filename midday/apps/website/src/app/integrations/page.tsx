@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { baseUrl } from "@/app/sitemap";
-import { IntegrationsGrid } from "@/components/integrations-grid";
-import { apps } from "@/data/apps";
+import { DxVideoCarouselSections } from "@/components/dx-video-carousel-sections";
 
-const title = "Integrations";
+const title = "DX Integrations";
 const description =
-  "Connect Midday with your favorite tools. Explore integrations for email, accounting, productivity, and more.";
+  "DX integrations connect providers, protocols, tools, and workflows in one runtime with shared context and orchestration.";
 
 export const metadata: Metadata = {
   title,
@@ -27,5 +26,10 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <IntegrationsGrid apps={apps} activeCategory="all" />;
+  return (
+    <DxVideoCarouselSections
+      pageTitle="DX Integrations"
+      pageDescription="DX meets you where you work: IDEs, browsers, creative tools, and protocol-based systems all connect through one unified execution graph."
+    />
+  );
 }

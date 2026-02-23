@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
 import { baseUrl } from "@/app/sitemap";
-import { Pricing } from "@/components/pricing";
+import { DxVideoCarouselSections } from "@/components/dx-video-carousel-sections";
 
-const title = "Pricing";
+const title = "DX Pricing";
 const description =
-  "Simple, transparent pricing for Midday. Start free and upgrade as you grow. Invoicing, expense tracking, and financial tools for small business owners.";
+  "Transparent DX pricing with a generous free tier and scalable plans designed for connected generation and workflow execution.";
 
 export const metadata: Metadata = {
   title,
   description,
-  keywords: [
-    "midday pricing",
-    "free accounting software",
-    "small business software pricing",
-    "invoicing software cost",
-  ],
   openGraph: {
     title,
     description,
@@ -31,37 +25,11 @@ export const metadata: Metadata = {
   },
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Midday",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web, macOS",
-  description:
-    "Business finance software for invoicing, expense tracking, time tracking, and financial insights.",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-    description: "Free plan available",
-  },
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "5",
-    ratingCount: "100",
-  },
-};
-
 export default function Page() {
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
-        }}
-      />
-      <Pricing />
-    </>
+    <DxVideoCarouselSections
+      pageTitle="DX Pricing"
+      pageDescription="DX pricing reflects our core thesis: save tokens everywhere, reduce waste, and make advanced workflows economically viable for individuals and teams."
+    />
   );
 }

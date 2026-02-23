@@ -1,8 +1,14 @@
 "use client";
 
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import { Button } from "@midday/ui/button";
 import { motion } from "motion/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { ReactNode } from "react";
+import { useRef } from "react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const generationCategories = [
   {
@@ -109,8 +115,31 @@ function Section({
 }
 
 export function StartPage() {
+  const scopeRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      gsap.fromTo(
+        ".dx-home-section",
+        { opacity: 0, y: 24 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.55,
+          stagger: 0.08,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: scopeRef.current,
+            start: "top 78%",
+          },
+        },
+      );
+    },
+    { scope: scopeRef },
+  );
+
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={scopeRef} className="min-h-screen bg-background">
       <section className="pt-36 pb-16 sm:pt-40 sm:pb-20">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-8">
           <motion.div {...fadeIn}>
@@ -155,11 +184,12 @@ export function StartPage() {
         </div>
       </section>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="what-is-dx"
         title="What Is DX?"
         subtitle="DX is a unified development experience platform. There are no arbitrary category boundaries — everything is one connected system."
-      >
+        >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm sm:text-base">
           <div className="border border-border p-5 text-muted-foreground">
             AI generation, tool calling, media creation, and workflow integration are not separate products.
@@ -170,13 +200,15 @@ export function StartPage() {
             one context, and one mental model.
           </div>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="built-on-rust"
         title="Built on Rust. Not Node.js. Not Electron."
         subtitle="DX is engineered in Rust for performance, efficiency, and native-grade responsiveness across platforms."
-      >
+        >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border border-border p-5">
             <p className="text-sm text-muted-foreground">Speed</p>
@@ -191,13 +223,15 @@ export function StartPage() {
             <p className="mt-2 text-foreground">GPUI-powered rendering for a fast, responsive native experience.</p>
           </div>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="generate-anything"
         title="Generate Literally Anything"
         subtitle="If you can name it, DX can generate it."
-      >
+        >
         <div className="overflow-x-auto border border-border">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40">
@@ -216,13 +250,15 @@ export function StartPage() {
             </tbody>
           </table>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="token-revolution"
         title="Token Revolution"
         subtitle="RLM + DX Serializer + micro-optimizations across the full pipeline."
-      >
+        >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border border-border p-5">
             <p className="text-foreground">RLM</p>
@@ -243,13 +279,15 @@ export function StartPage() {
             </p>
           </div>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="works-everywhere"
         title="Works Everywhere"
         subtitle="Native apps and extensions across the full development and creative workflow."
-      >
+        >
         <div className="overflow-x-auto border border-border">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40">
@@ -270,13 +308,15 @@ export function StartPage() {
             </tbody>
           </table>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="free-ai"
         title="Free AI Access — Any Provider, Even Offline"
         subtitle="Own your workflow. No vendor lock-in."
-      >
+        >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border border-border p-5 text-muted-foreground">
             <p className="text-foreground">Online</p>
@@ -291,13 +331,15 @@ export function StartPage() {
             <p className="mt-2 text-sm">Switch seamlessly between cloud and local models based on runtime conditions.</p>
           </div>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section
+      <div className="dx-home-section">
+        <Section
         id="competitive"
         title="Competitive Positioning"
         subtitle="Technical differences that matter in production workflows."
-      >
+        >
         <div className="overflow-x-auto border border-border">
           <table className="w-full text-sm">
             <thead className="bg-secondary/40">
@@ -318,9 +360,11 @@ export function StartPage() {
             </tbody>
           </table>
         </div>
-      </Section>
+        </Section>
+      </div>
 
-      <Section id="pricing" title="Pricing" subtitle="Generous free access. Transparent paid tiers.">
+      <div className="dx-home-section">
+        <Section id="pricing" title="Pricing" subtitle="Generous free access. Transparent paid tiers.">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             {
@@ -346,7 +390,8 @@ export function StartPage() {
             </div>
           ))}
         </div>
-      </Section>
+        </Section>
+      </div>
 
       <section id="waitlist" className="py-16 sm:py-24 border-t border-border">
         <div className="max-w-[1100px] mx-auto px-4 sm:px-8">
