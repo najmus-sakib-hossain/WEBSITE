@@ -18,6 +18,12 @@ We also have apps for Android, iOS, Mac, Linux, and Windows apps operating syste
 ```bash
 npm install -g bun
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+git clone https://github.com/shadcn-ui/ui && cd ui && rm -rf .git && cd ..
+git clone https://github.com/jnsahaj/tweakcn && cd tweakcn && rm -rf .git && cd ..
+git clone https://github.com/excalidraw/excalidraw && cd excalidraw && rm -rf .git && cd ..
+git clone https://github.com/udecode/plate && cd plate && rm -rf .git && cd ..
+
 git clone https://github.com/midday-ai/midday && rm -rf .git && cd midday/apps/website && bun install && bun run dev && cd ..
 git clone https://github.com/najmus-sakib-hossain/icons && cd icons && rm -rf .git && cd ..
 ```
