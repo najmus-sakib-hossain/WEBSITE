@@ -100,13 +100,12 @@ export const viewport = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "Midday",
-  url: "https://midday.ai",
+  name: "DX",
+  url: "https://dx.ai",
   logo: "https://cdn.midday.ai/logo.png",
   sameAs: [
-    "https://x.com/middayai",
-    "https://github.com/midday-ai/midday",
-    "https://linkedin.com/company/midday-ai",
+    "https://x.com/dxai",
+    "https://linkedin.com/company/dx-ai",
   ],
   description:
     "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
