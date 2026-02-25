@@ -7,13 +7,26 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
+import { DxAiFace } from "./dx-ai-face";
+import { DxVideoShowcases } from "./dx-video-showcases";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const generationCategories = [
+const marqueeCompanies = [
+  "Arcforge",
+  "Neonstack",
+  "Byteplane",
+  "Graphloom",
+  "Shellgrid",
+  "Nodecraft",
+  "Cloudmesh",
+  "Signalbase",
+];
+
+const featureCards = [
   {
-    category: "Code",
-    capability: "Any language, any framework, full-project scaffolding",
+    title: "Rust-Powered Performance",
+    body: "Built from the ground up in Rust. 12ms startup. 45MB RAM baseline. 60fps UI under load.",
   },
   {
     category: "Docs & Files",
@@ -24,8 +37,8 @@ const generationCategories = [
     capability: "Visualizations, dashboards, and analysis",
   },
   {
-    category: "Deep Research",
-    capability: "Multi-step reasoning, deep dives, synthesis",
+    title: "Offline-First",
+    body: "Full capability without internet using local models, cached docs, and local workflows.",
   },
   {
     category: "Tool Calling",
@@ -38,8 +51,8 @@ const generationCategories = [
       "Image generation, editing, and token-efficient image workflows",
   },
   {
-    category: "Video",
-    capability: "AI video generation and editing",
+    title: "MCP Apps Integration",
+    body: "Native MCP app orchestration gives DX direct access to the tools that power your stack.",
   },
   {
     category: "3D",
@@ -371,17 +384,33 @@ export function StartPage() {
   useGSAP(
     () => {
       gsap.fromTo(
-        ".dx-home-section",
-        { opacity: 0, y: 24 },
+        ".dx-reveal",
+        { opacity: 0, y: 22 },
         {
           opacity: 1,
           y: 0,
           duration: 0.55,
-          stagger: 0.08,
+          stagger: 0.07,
           ease: "power2.out",
           scrollTrigger: {
             trigger: scopeRef.current,
-            start: "top 78%",
+            start: "top 80%",
+          },
+        },
+      );
+
+      gsap.fromTo(
+        ".dx-bar",
+        { scaleX: 0.08 },
+        {
+          scaleX: 1,
+          duration: 0.9,
+          ease: "power2.out",
+          transformOrigin: "left center",
+          stagger: 0.08,
+          scrollTrigger: {
+            trigger: ".dx-bench-wrap",
+            start: "top 82%",
           },
         },
       );
@@ -481,15 +510,17 @@ export function StartPage() {
   );
 
   return (
-    <div ref={scopeRef} className="min-h-screen bg-background">
-      <section className="pt-36 pb-16 sm:pt-40 sm:pb-20">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-8">
-          <motion.div {...fadeIn}>
-            <p className="text-xs sm:text-sm tracking-wide text-muted-foreground uppercase">
-              Launching February 24, 2026
-            </p>
-            <h1 className="mt-4 font-serif text-4xl sm:text-5xl lg:text-6xl leading-tight text-foreground max-w-4xl">
-              Enhance Your Development Experience.
+    <div ref={scopeRef} className="min-h-screen bg-background pb-20">
+      <section className="pt-32 sm:pt-36">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <div className="dx-reveal text-center">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching February 24, 2026</p>
+            <div className="mt-6">
+              <DxAiFace />
+            </div>
+            <p className="mt-6 text-base sm:text-lg text-muted-foreground">Hi. I&apos;m DX.</p>
+            <h1 className="mt-3 font-serif text-4xl sm:text-5xl lg:text-6xl leading-tight text-foreground">
+              The Developer Experience You Actually Deserve.
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-3xl">
               DX is not just another AI app. It is a unified development
@@ -497,15 +528,15 @@ export function StartPage() {
               and media execution in one runtime — built to help teams ship
               faster with less tool friction.
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Button asChild className="btn-inverse h-11 px-6">
-                <a href="#waitlist">Join Early Access</a>
+                <Link href="/download">Get Started Free</Link>
               </Button>
               <Button asChild variant="outline" className="h-11 px-6">
-                <a href="#what-is-dx">Explore DX</a>
+                <a href="#showcases">Watch Demo</a>
               </Button>
             </div>
-          </motion.div>
+          </div>
 
           <motion.div
             className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4"
@@ -1216,11 +1247,120 @@ export function StartPage() {
         </Section>
       </div>
 
-      <section id="waitlist" className="py-16 sm:py-24 border-t border-border">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-8">
+      <section className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <div className="border border-border p-5 sm:p-7 dx-bench-wrap">
+            <h2 className="font-serif text-3xl text-foreground">Built With Rust. Built To Fly.</h2>
+            <p className="mt-3 text-muted-foreground max-w-3xl">
+              DX is engineered in Rust for memory safety and high throughput. It keeps startup instant, UI responsive,
+              and workflows stable under heavy project loads.
+            </p>
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                {[
+                  ["DX", "12ms startup"],
+                  ["VS Code", "1.2s startup"],
+                  ["JetBrains", "3.5s startup"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground">{label}</span>
+                      <span className="text-muted-foreground">{value}</span>
+                    </div>
+                    <div className="mt-2 h-2 bg-secondary/40 border border-border overflow-hidden">
+                      <div className="dx-bar h-full bg-foreground" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border border-border p-4">
+                <p className="text-sm text-muted-foreground">Deep Dive</p>
+                <p className="mt-2 text-foreground">
+                  Zero garbage collection pauses. Low memory pressure. Native execution path for editor and assistant workflows.
+                </p>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  12ms startup · 45MB RAM baseline · 60fps UI under heavy file and tool workloads.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <div className="border border-border p-5 sm:p-7">
+            <h2 className="font-serif text-3xl text-foreground">Developer Testimonials</h2>
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {testimonials.map((item) => (
+                <div key={item.quote} className="border border-border p-4">
+                  <p className="text-foreground">“{item.quote}”</p>
+                  <p className="mt-3 text-xs text-muted-foreground">— {item.by}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <div className="border border-border p-5 sm:p-7 overflow-x-auto">
+            <h2 className="font-serif text-3xl text-foreground">Comparison Table</h2>
+            <table className="w-full min-w-[680px] mt-5 text-sm">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left py-2">Feature</th>
+                  <th className="text-left py-2">DX</th>
+                  <th className="text-left py-2">VS Code</th>
+                  <th className="text-left py-2">JetBrains</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonRows.map((row) => (
+                  <tr key={row[0]} className="border-b border-border">
+                    <td className="py-2 text-foreground">{row[0]}</td>
+                    <td className="py-2 text-foreground">{row[1]}</td>
+                    <td className="py-2 text-muted-foreground">{row[2]}</td>
+                    <td className="py-2 text-muted-foreground">{row[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <div className="border border-border p-6 sm:p-10 text-center">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Interactive Demo</p>
+            <h3 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">Try the DX workflow playground.</h3>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              See connected generation, MCP actions, automations, and offline mode behavior in one guided demo.
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <Button asChild className="btn-inverse h-11 px-8">
+                <Link href="/assistant">Open Assistant</Link>
+              </Button>
+              <Button asChild variant="outline" className="h-11 px-8">
+                <Link href="/integrations">Explore Integrations</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="waitlist" className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
           <motion.div
             className="border border-border p-6 sm:p-10 text-center"
-            {...fadeIn}
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.35 }}
           >
             <p className="text-muted-foreground text-sm uppercase tracking-wide">
               Early Access

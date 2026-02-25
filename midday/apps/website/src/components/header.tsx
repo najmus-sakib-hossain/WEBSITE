@@ -51,15 +51,43 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
 
         {!hideMenuItems ? (
           <nav className="hidden xl:flex items-center gap-6">
-            {navigation.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
+            {navigation.map((item) => {
+              if (item.href === "/docs") {
+                return (
+                  <div key={item.href} className="relative group">
+                    <Link
+                      href={item.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                    <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-1/2 -translate-x-1/2 pt-4">
+                      <div className="w-56 rounded-md border border-border bg-background/95 backdrop-blur-md p-2 shadow-sm">
+                        {docsNavigation.map((docsItem) => (
+                          <Link
+                            key={docsItem.href}
+                            href={docsItem.href}
+                            className="block rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                          >
+                            {docsItem.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         ) : null}
 
@@ -68,7 +96,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
             <a href="/docs">Read Docs</a>
           </Button>
           <Button asChild className="btn-inverse h-9 px-4">
-            <a href="#waitlist">Join Waitlist</a>
+            <Link href="/download">Download DX ▶</Link>
           </Button>
         </div>
 
@@ -91,25 +119,40 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
         >
           <div className="px-4 py-4 flex flex-col gap-2">
             {navigation.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm text-muted-foreground hover:text-foreground px-2 py-2"
-                onClick={() => setIsOpen(false)}
-              >
-                {item.label}
-              </a>
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {item.label}
+                </Link>
+                {item.href === "/docs" ? (
+                  <div className="pl-5 pb-1 flex flex-col">
+                    {docsNavigation.map((docsItem) => (
+                      <Link
+                        key={docsItem.href}
+                        href={docsItem.href}
+                        className="text-xs text-muted-foreground hover:text-foreground py-1"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {docsItem.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ))}
             <div className="pt-2 grid grid-cols-2 gap-2">
               <Button asChild variant="outline" className="h-9">
                 <a href="/docs" onClick={() => setIsOpen(false)}>
                   Read Docs
-                </a>
+                </Link>
               </Button>
               <Button asChild className="btn-inverse h-9">
-                <a href="#waitlist" onClick={() => setIsOpen(false)}>
-                  Join Waitlist
-                </a>
+                <Link href="/download" onClick={() => setIsOpen(false)}>
+                  Download DX ▶
+                </Link>
               </Button>
             </div>
           </div>

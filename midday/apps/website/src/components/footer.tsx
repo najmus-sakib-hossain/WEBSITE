@@ -15,34 +15,49 @@ type FooterSection = {
 };
 
 export function Footer() {
+  const docsQuickLinks: FooterLink[] = [
+    { href: "/docs/getting-started", label: "Getting Started" },
+    { href: "/docs/shortcuts", label: "Shortcuts" },
+    { href: "/docs/workflows", label: "Workflows" },
+    { href: "/docs/mcp-apps", label: "MCP Apps" },
+    { href: "/docs/offline", label: "Offline" },
+    { href: "/docs/api", label: "API" },
+  ];
+
   const sections: FooterSection[] = [
     {
       title: "Product",
       links: [
-        { href: "#what-is-dx", label: "What is DX" },
-        { href: "#generate-anything", label: "Generate" },
-        { href: "#token-revolution", label: "Token Revolution" },
-        { href: "#pricing", label: "Pricing" },
+        { href: "/assistant", label: "Assistant" },
+        { href: "/integrations", label: "Integrations" },
+        { href: "/pricing", label: "Pricing" },
+        { href: "/download", label: "Download" },
       ],
     },
     {
       title: "Platform",
       links: [
-        { href: "#works-everywhere", label: "Coverage" },
-        { href: "#free-ai", label: "Free AI Access" },
-        { href: "#built-on-rust", label: "Built on Rust" },
+        { href: "/docs", label: "Documentation" },
+        { href: "/blog", label: "Blog" },
+        { href: "/docs/shortcuts", label: "Shortcuts" },
+        { href: "/docs/workflows", label: "Workflows" },
+        { href: "/docs/mcp-apps", label: "MCP Apps" },
       ],
     },
     {
       title: "Company",
       links: [
+        { href: "/about", label: "About" },
+        { href: "/changelog", label: "Changelog" },
+        { href: "/contact", label: "Contact" },
+        { href: "/security", label: "Security" },
+        { href: "/terms", label: "Terms" },
         { href: "https://x.com/dxai", label: "X / Twitter", external: true },
         {
           href: "https://www.linkedin.com/company/dx-ai",
           label: "LinkedIn",
           external: true,
         },
-        { href: "mailto:hello@dx.ai", label: "Contact", external: true },
       ],
     },
   ];
@@ -70,6 +85,25 @@ export function Footer() {
                     </Link>
                   ))}
                 </div>
+
+                {section.title === "Platform" ? (
+                  <div className="pt-3">
+                    <p className="font-sans text-xs text-muted-foreground mb-2">
+                      Quick links
+                    </p>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {docsQuickLinks.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className="font-sans text-xs text-muted-foreground hover:text-foreground transition-colors block"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
