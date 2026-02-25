@@ -118,7 +118,7 @@ export function MCPClaude() {
                 Conversations with real numbers
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Claude can pull live data from your Midday account to answer
+                Claude can pull live data from your DX account to answer
                 questions accurately. Works with both Claude Code and Claude
                 Desktop.
               </p>
@@ -255,7 +255,7 @@ export function MCPClaude() {
                   <span className="font-sans text-sm text-muted-foreground pt-0.5">
                     {activeTab === "code"
                       ? "Use @midday in Claude Code to access your data"
-                      : "Restart Claude Desktop and use Midday tools"}
+                      : "Restart Claude Desktop and use DX tools"}
                   </span>
                 </li>
               </ol>

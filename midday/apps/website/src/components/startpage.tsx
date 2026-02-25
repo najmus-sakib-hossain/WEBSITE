@@ -1,10 +1,10 @@
 "use client";
 
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
 import { Button } from "@midday/ui/button";
-import { motion } from "motion/react";
+import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 
@@ -16,6 +16,10 @@ const generationCategories = [
     capability: "Any language, any framework, full-project scaffolding",
   },
   {
+    category: "Docs & Files",
+    capability: "PDFs, specs, reports, and document generation",
+  },
+  {
     category: "Charts & Data",
     capability: "Visualizations, dashboards, and analysis",
   },
@@ -25,7 +29,13 @@ const generationCategories = [
   },
   {
     category: "Tool Calling",
-    capability: "Full support for MCP, ACP, and A2A protocols",
+    capability:
+      "Full support for MCP, ACP, and A2A protocols (DX DCP-compatible)",
+  },
+  {
+    category: "Images",
+    capability:
+      "Image generation, editing, and token-efficient image workflows",
   },
   {
     category: "Video",
@@ -33,7 +43,7 @@ const generationCategories = [
   },
   {
     category: "3D",
-    capability: "3D asset and scene generation",
+    capability: "3D / AR / VR asset and scene generation",
   },
   {
     category: "Audio & Music",
@@ -51,32 +61,202 @@ const platforms = [
   ["Linux", "Native Desktop App", "✅ Launch"],
   ["Android", "Mobile App", "✅ Launch"],
   ["iOS", "Mobile App", "✅ Launch"],
-  ["Browser", "Extension", "✅ Launch"],
+  ["ChromeOS", "Native / Web App", "✅ Launch"],
+  ["Tablets", "Tablet UI", "✅ Launch"],
+  ["watchOS", "Companion App", "✅ Launch"],
+  ["tvOS", "Companion App", "✅ Launch"],
+  ["Browser", "Remote Web Console + Extension", "✅ Launch"],
   ["IDEs/Editors", "Extensions", "✅ Launch"],
   ["Video Editors", "Plugins", "✅ Launch"],
   ["Image Editors", "Plugins", "✅ Launch"],
+  ["Design Tools", "Plugins (Figma, Photoshop, etc.)", "✅ Launch"],
 ];
 
 const comparisons = [
   ["Core Language", "Rust + GPUI", "Node.js / Electron"],
-  ["Token Efficiency", "80–90% savings (RLM)", "No RLM implementation"],
   [
-    "Serialization",
-    "DX Serializer (70–90% savings)",
-    "Raw JSON payloads",
+    "Token Efficiency",
+    "30–90% savings (RLM + tokenizers)",
+    "No end-to-end optimization",
   ],
+  ["Serialization", "DX Serializer (70–90% savings)", "Raw JSON payloads"],
   ["Offline Support", "Unlimited, free", "Internet + paid tiers"],
-  ["AI Provider Support", "Any provider", "Locked to 1–3 providers"],
+  [
+    "AI Provider Support",
+    "100+ providers + local models",
+    "Locked to 1–3 providers",
+  ],
+  ["Connectors", "400+ connects + Cloud CLI skills", "Limited integrations"],
   [
     "Media Generation",
-    "Code, video, 3D, audio, music",
+    "Text, images, video, 3D/AR/VR, audio + docs",
     "Mostly code only",
   ],
   [
+    "Traffic Security",
+    "Green / Yellow / Red automation + safe backups",
+    "Manual review or all-or-nothing",
+  ],
+  [
     "Platform Coverage",
-    "5 OS + extensions everywhere",
+    "Desktop + mobile + ChromeOS + companion OS + extensions",
     "1–2 platforms, limited plugins",
   ],
+];
+
+const stats = [
+  { label: "LLM Providers", value: 100, suffix: "+" },
+  { label: "Connects", value: 400, suffix: "+" },
+  { label: "Token Savings", value: 90, suffix: "%" },
+  { label: "Icon Library", value: 1000000, suffix: "+" },
+];
+
+const forgeRoutes = [
+  ["Video", "YouTube unlisted/draft"],
+  ["Images", "Pinterest libraries"],
+  ["Audio", "SoundCloud/Spotify-like platforms"],
+  ["3D/AR/VR", "Sketchfab-like storage endpoints"],
+  ["Code + Docs", "GitHub / GitLab / Bitbucket (single or multi-target)"],
+];
+
+const trafficLevels = [
+  {
+    level: "Green",
+    behavior: "Auto-executes harmless actions",
+    detail: "Optimized for zero-friction flow when the operation is safe.",
+  },
+  {
+    level: "Yellow",
+    behavior: "Executes with warnings or silent notifications",
+    detail:
+      "Keeps velocity high while signaling medium-risk operations clearly.",
+  },
+  {
+    level: "Red",
+    behavior: "Executes with high-visibility warnings + safety backup",
+    detail:
+      "For destructive operations, DX creates a backup snapshot before changes.",
+  },
+];
+
+const checkRanks = ["F", "E", "D", "C", "B", "A", "S", "SS", "SSS", "SSSS", "SSSSS"];
+
+const mediaPillars = [
+  "Unified support for audio, video, image, and 3D/AR/VR providers",
+  "Built-in media library with organization and collaborative workflows",
+  "5000+ fonts, 219+ icon sets, and 1M+ icons",
+  "Version control for media assets with rollback support",
+  "Custom provider linking and reusable asset workflows",
+];
+
+type PillarKey = "forge" | "traffic" | "check" | "media";
+
+const pillarPlaybooks: Record<PillarKey, string[]> = {
+  forge: [
+    "Generate assets in one DX flow",
+    "Route each media type to platform-specific storage",
+    "Version every iteration and preserve rollback history",
+    "Promote from draft to publish-ready channels",
+  ],
+  traffic: [
+    "Classify action risk in real time",
+    "Apply Green/Yellow/Red execution policy",
+    "Protect sensitive values before outbound calls",
+    "Create safety snapshot on high-risk operations",
+  ],
+  check: [
+    "Scan structure, naming, and dependency hygiene",
+    "Run security and vulnerability checks",
+    "Score quality on a 500-point rank ladder",
+    "Emit prioritized, fix-ready recommendations",
+  ],
+  media: [
+    "Pull assets from linked providers",
+    "Edit and organize in a shared media library",
+    "Track versions and collaborator changes",
+    "Export back to workflow tools with context intact",
+  ],
+};
+
+const pillarVideos: Record<PillarKey, string[]> = {
+  forge: [
+    "Forge: Cross-platform media commit",
+    "Forge: YouTube draft pipeline",
+    "Forge: Multi-target publish flow",
+  ],
+  traffic: [
+    "Traffic: Green auto-execution",
+    "Traffic: Yellow warning path",
+    "Traffic: Red safety snapshot",
+  ],
+  check: [
+    "Check: Rank score walkthrough",
+    "Check: Security audit run",
+    "Check: Fix recommendation flow",
+  ],
+  media: [
+    "Media: Multi-provider asset fetch",
+    "Media: Collaborative edit loop",
+    "Media: Version rollback + export",
+  ],
+};
+
+const storyRail = [
+  {
+    step: "01",
+    title: "Rust Core + GPUI Runtime",
+    metric: "Up to 70% lower RAM pressure",
+    detail:
+      "DX runs heavy generation and orchestration without the Electron overhead that slows traditional AI tools.",
+  },
+  {
+    step: "02",
+    title: "Token Stack: RLM + Serializer + Tokenizers",
+    metric: "30–90% token savings",
+    detail:
+      "Context compression and transport optimization compound across multi-step workflows to reduce cost and latency.",
+  },
+  {
+    step: "03",
+    title: "Always-On Workflows (Online + Offline)",
+    metric: "No offline lockout",
+    detail:
+      "Switch between cloud and local execution paths while preserving workflow state and output continuity.",
+  },
+  {
+    step: "04",
+    title: "Scale Layer: 100+ Providers + 400+ Connects",
+    metric: "One connected runtime",
+    detail:
+      "Models, tools, communication apps, and media pipelines share context so work moves end-to-end faster.",
+  },
+];
+
+const deepDiveRoutes = [
+  {
+    title: "Assistant Flows",
+    description:
+      "See multi-step execution with connected context across Ask, Agent, Plan, Search, Study, and Research.",
+    href: "/assistant",
+  },
+  {
+    title: "MCP + AI Integrations",
+    description:
+      "Explore how DX routes business data and tools into Claude, Cursor, ChatGPT, Copilot, Raycast, Zapier, and more.",
+    href: "/mcp",
+  },
+  {
+    title: "Integrations Grid",
+    description:
+      "Review the integration surface and categories, then jump into provider-level detail pages.",
+    href: "/integrations",
+  },
+  {
+    title: "Documentation",
+    description:
+      "Read operational guidance for DX workflows, setup patterns, and production usage.",
+    href: "/docs",
+  },
 ];
 
 const fadeIn = {
@@ -104,13 +284,84 @@ function Section({
       {...fadeIn}
     >
       <div className="max-w-[1100px] mx-auto px-4 sm:px-8">
-        <h2 className="font-serif text-2xl sm:text-3xl text-foreground">{title}</h2>
+        <h2 className="font-serif text-2xl sm:text-3xl text-foreground">
+          {title}
+        </h2>
         {subtitle ? (
-          <p className="mt-3 text-base text-muted-foreground max-w-3xl">{subtitle}</p>
+          <p className="mt-3 text-base text-muted-foreground max-w-3xl">
+            {subtitle}
+          </p>
         ) : null}
         <div className="mt-8">{children}</div>
       </div>
     </motion.section>
+  );
+}
+
+function VideoPlaceholderStrip({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const scrollByViewport = (direction: "prev" | "next") => {
+    const track = trackRef.current;
+    if (!track) return;
+    const amount = track.clientWidth * 0.92;
+    track.scrollBy({
+      left: direction === "next" ? amount : -amount,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <div className="mt-6 border border-border p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          {title}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 px-3"
+            onClick={() => scrollByViewport("prev")}
+          >
+            Prev
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 px-3"
+            onClick={() => scrollByViewport("next")}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
+      <div
+        ref={trackRef}
+        className="mt-4 flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {items.map((item) => (
+          <div
+            key={item}
+            className="dx-video-card min-w-[260px] sm:min-w-[320px] md:min-w-[360px] border border-border bg-secondary/20 p-4"
+          >
+            <div className="h-36 sm:h-40 border border-border bg-background/80 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                Video Placeholder
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-foreground">{item}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -134,6 +385,97 @@ export function StartPage() {
           },
         },
       );
+
+      gsap.utils.toArray<HTMLElement>(".dx-counter").forEach((node) => {
+        const target = Number(node.dataset.value ?? 0);
+        const suffix = node.dataset.suffix ?? "";
+        const counter = { value: 0 };
+
+        gsap.to(counter, {
+          value: target,
+          duration: 1.2,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: node,
+            start: "top 88%",
+            once: true,
+          },
+          onUpdate: () => {
+            node.textContent = `${Math.round(counter.value)}${suffix}`;
+          },
+          onComplete: () => {
+            node.textContent = `${target}${suffix}`;
+          },
+        });
+      });
+
+      gsap.fromTo(
+        ".dx-story-card",
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.55,
+          stagger: 0.12,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".dx-story-rail",
+            start: "top 82%",
+            once: true,
+          },
+        },
+      );
+
+      gsap.fromTo(
+        ".dx-deep-dive-card",
+        { opacity: 0, y: 16 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.45,
+          stagger: 0.08,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".dx-deep-dive-grid",
+            start: "top 84%",
+            once: true,
+          },
+        },
+      );
+
+      gsap.fromTo(
+        ".dx-play-step",
+        { opacity: 0, y: 16 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.45,
+          stagger: 0.06,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".dx-playbook-grid",
+            start: "top 84%",
+            once: true,
+          },
+        },
+      );
+
+      gsap.fromTo(
+        ".dx-video-card",
+        { opacity: 0, y: 14 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.45,
+          stagger: 0.08,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".dx-video-card",
+            start: "top 90%",
+            once: true,
+          },
+        },
+      );
     },
     { scope: scopeRef },
   );
@@ -150,9 +492,10 @@ export function StartPage() {
               Enhance Your Development Experience.
             </h1>
             <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-3xl">
-              DX is not a chatbot. Not just an AI agent. Not another wrapper around an LLM.
-              DX is a unified development experience platform where code generation, research,
-              tool orchestration, video, 3D, and audio are connected by one purpose: helping you build faster.
+              DX is not just another AI app. It is a unified development
+              experience platform that connects code, research, orchestration,
+              and media execution in one runtime — built to help teams ship
+              faster with less tool friction.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Button asChild className="btn-inverse h-11 px-6">
@@ -173,11 +516,35 @@ export function StartPage() {
           >
             {[
               "Built on Rust + GPUI",
-              "Any AI provider + offline local models",
-              "80–90% token savings on large operations",
+              "100+ LLM providers + offline local models",
+              "30–90% token savings on large operations",
             ].map((item) => (
-              <div key={item} className="border border-border bg-background p-4 text-sm text-foreground">
+              <div
+                key={item}
+                className="border border-border bg-background p-4 text-sm text-foreground"
+              >
                 {item}
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.4 }}
+          >
+            {stats.map((item) => (
+              <div key={item.label} className="border border-border p-4 bg-background">
+                <p
+                  className="text-2xl sm:text-3xl text-foreground dx-counter"
+                  data-value={item.value}
+                  data-suffix={item.suffix}
+                >
+                  0{item.suffix}
+                </p>
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{item.label}</p>
               </div>
             ))}
           </motion.div>
@@ -186,210 +553,666 @@ export function StartPage() {
 
       <div className="dx-home-section">
         <Section
-        id="what-is-dx"
-        title="What Is DX?"
-        subtitle="DX is a unified development experience platform. There are no arbitrary category boundaries — everything is one connected system."
+          id="story-engine"
+          title="The DX Story Engine"
+          subtitle="A single runtime that compresses cost, keeps context, and scales from local execution to multi-provider production workflows."
         >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm sm:text-base">
-          <div className="border border-border p-5 text-muted-foreground">
-            AI generation, tool calling, media creation, and workflow integration are not separate products.
-            They are facets of one cohesive experience.
+          <div className="dx-story-rail grid grid-cols-1 md:grid-cols-2 gap-4">
+            {storyRail.map((item) => (
+              <motion.div
+                key={item.step}
+                className="dx-story-card border border-border p-5"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Step {item.step}
+                </p>
+                <h3 className="mt-2 text-lg text-foreground font-medium">{item.title}</h3>
+                <p className="mt-2 text-sm text-foreground">{item.metric}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{item.detail}</p>
+                <div className="mt-4 h-28 border border-border bg-secondary/30 flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Demo Placeholder
+                  </span>
+                </div>
+              </motion.div>
+            ))}
           </div>
-          <div className="border border-border p-5 text-muted-foreground">
-            You can generate code, analyze data, run deep research, and produce media with one consistent workflow,
-            one context, and one mental model.
-          </div>
-        </div>
-        </Section>
-      </div>
 
-      <div className="dx-home-section">
-        <Section
-        id="built-on-rust"
-        title="Built on Rust. Not Node.js. Not Electron."
-        subtitle="DX is engineered in Rust for performance, efficiency, and native-grade responsiveness across platforms."
-        >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border border-border p-5">
-            <p className="text-sm text-muted-foreground">Speed</p>
-            <p className="mt-2 text-foreground">Near-native performance on every operation.</p>
-          </div>
-          <div className="border border-border p-5">
-            <p className="text-sm text-muted-foreground">Efficiency</p>
-            <p className="mt-2 text-foreground">Scales from low-end hardware to workstation-class machines.</p>
-          </div>
-          <div className="border border-border p-5">
-            <p className="text-sm text-muted-foreground">Desktop UI</p>
-            <p className="mt-2 text-foreground">GPUI-powered rendering for a fast, responsive native experience.</p>
-          </div>
-        </div>
-        </Section>
-      </div>
-
-      <div className="dx-home-section">
-        <Section
-        id="generate-anything"
-        title="Generate Literally Anything"
-        subtitle="If you can name it, DX can generate it."
-        >
-        <div className="overflow-x-auto border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40">
-              <tr>
-                <th className="text-left p-3 text-foreground font-medium">Category</th>
-                <th className="text-left p-3 text-foreground font-medium">Capabilities</th>
-              </tr>
-            </thead>
-            <tbody>
-              {generationCategories.map((row) => (
-                <tr key={row.category} className="border-t border-border">
-                  <td className="p-3 text-foreground">{row.category}</td>
-                  <td className="p-3 text-muted-foreground">{row.capability}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </Section>
-      </div>
-
-      <div className="dx-home-section">
-        <Section
-        id="token-revolution"
-        title="Token Revolution"
-        subtitle="RLM + DX Serializer + micro-optimizations across the full pipeline."
-        >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border border-border p-5">
-            <p className="text-foreground">RLM</p>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Saves 80–90% tokens on large file operations by minimizing reference length in context flows.
+          <div className="mt-6 border border-border p-5">
+            <p className="text-sm text-muted-foreground">
+              This is where DX changes the game: the same workflow can move from local, offline generation to cloud orchestration without rebuilding the process.
             </p>
           </div>
-          <div className="border border-border p-5">
-            <p className="text-foreground">DX Serializer</p>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Saves 70–90% tokens on tool calls by replacing bloated JSON transport.
-            </p>
-          </div>
-          <div className="border border-border p-5">
-            <p className="text-foreground">Compound Savings</p>
-            <p className="mt-2 text-muted-foreground text-sm">
-              Savings stack across operations, making complex agent workflows economically viable.
-            </p>
-          </div>
-        </div>
         </Section>
       </div>
 
       <div className="dx-home-section">
         <Section
-        id="works-everywhere"
-        title="Works Everywhere"
-        subtitle="Native apps and extensions across the full development and creative workflow."
+          id="what-is-dx"
+          title="What Is DX?"
+          subtitle="DX is a unified development experience platform built to serve everyone — developers, creators, and teams. There are no arbitrary category boundaries — everything is one connected system."
         >
-        <div className="overflow-x-auto border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40">
-              <tr>
-                <th className="text-left p-3 text-foreground font-medium">Platform</th>
-                <th className="text-left p-3 text-foreground font-medium">App Type</th>
-                <th className="text-left p-3 text-foreground font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {platforms.map(([platform, appType, status]) => (
-                <tr key={platform} className="border-t border-border">
-                  <td className="p-3 text-foreground">{platform}</td>
-                  <td className="p-3 text-muted-foreground">{appType}</td>
-                  <td className="p-3 text-foreground">{status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </Section>
-      </div>
-
-      <div className="dx-home-section">
-        <Section
-        id="free-ai"
-        title="Free AI Access — Any Provider, Even Offline"
-        subtitle="Own your workflow. No vendor lock-in."
-        >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border border-border p-5 text-muted-foreground">
-            <p className="text-foreground">Online</p>
-            <p className="mt-2 text-sm">Connect to OpenAI, Anthropic, Google, Mistral, open-source, and self-hosted endpoints.</p>
-          </div>
-          <div className="border border-border p-5 text-muted-foreground">
-            <p className="text-foreground">Offline</p>
-            <p className="mt-2 text-sm">Run capable local models without internet and without token limits.</p>
-          </div>
-          <div className="border border-border p-5 text-muted-foreground">
-            <p className="text-foreground">Hybrid</p>
-            <p className="mt-2 text-sm">Switch seamlessly between cloud and local models based on runtime conditions.</p>
-          </div>
-        </div>
-        </Section>
-      </div>
-
-      <div className="dx-home-section">
-        <Section
-        id="competitive"
-        title="Competitive Positioning"
-        subtitle="Technical differences that matter in production workflows."
-        >
-        <div className="overflow-x-auto border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/40">
-              <tr>
-                <th className="text-left p-3 text-foreground font-medium">Feature</th>
-                <th className="text-left p-3 text-foreground font-medium">DX</th>
-                <th className="text-left p-3 text-foreground font-medium">Competitors</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisons.map(([feature, dx, competitors]) => (
-                <tr key={feature} className="border-t border-border">
-                  <td className="p-3 text-foreground">{feature}</td>
-                  <td className="p-3 text-foreground">{dx}</td>
-                  <td className="p-3 text-muted-foreground">{competitors}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </Section>
-      </div>
-
-      <div className="dx-home-section">
-        <Section id="pricing" title="Pricing" subtitle="Generous free access. Transparent paid tiers.">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              title: "Free",
-              price: "$0",
-              details: "Start with core generation, local workflows, and integrations.",
-            },
-            {
-              title: "Pro",
-              price: "$19/mo",
-              details: "Higher limits, advanced orchestration, and team-ready workflows.",
-            },
-            {
-              title: "Scale",
-              price: "Custom",
-              details: "Enterprise controls, private deployment options, and support SLAs.",
-            },
-          ].map((plan) => (
-            <div key={plan.title} className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">{plan.title}</p>
-              <p className="mt-2 text-2xl text-foreground">{plan.price}</p>
-              <p className="mt-3 text-sm text-muted-foreground">{plan.details}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm sm:text-base">
+            <div className="border border-border p-5 text-muted-foreground">
+              AI generation, tool calling, media creation, and workflow
+              integration are not separate products. They are facets of one
+              cohesive experience.
             </div>
-          ))}
-        </div>
+            <div className="border border-border p-5 text-muted-foreground">
+              You can generate code, analyze data, run deep research, and
+              produce media with one consistent workflow, one context, and one
+              mental model.
+            </div>
+            <div className="border border-border p-5 text-muted-foreground">
+              Manage everything from the browser with a remote web console —
+              then keep the same workflow on native apps across desktop, mobile,
+              and companion devices.
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Modes</p>
+              <p className="mt-2 text-foreground">
+                Ask, Agent, Plan, Search, Study, Research.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Extensions</p>
+              <p className="mt-2 text-foreground">
+                Browsers, IDEs, Figma, Photoshop, DaVinci Resolve — and more.
+              </p>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="deep-dive"
+          title="Deep-Dive Routes"
+          subtitle="Start on the high-impact homepage, then drill into full walkthroughs for each major DX capability surface."
+        >
+          <div className="dx-deep-dive-grid grid grid-cols-1 md:grid-cols-2 gap-4">
+            {deepDiveRoutes.map((route) => (
+              <motion.a
+                key={route.title}
+                href={route.href}
+                className="dx-deep-dive-card border border-border p-5 block"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <h3 className="text-foreground text-lg font-medium">{route.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{route.description}</p>
+                <p className="mt-4 text-sm text-foreground">Open route →</p>
+              </motion.a>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="command-center"
+          title="DX Command Center"
+          subtitle="Move from landing-page overview to operational proof in one click."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Product Workflows</p>
+              <p className="mt-2 text-foreground">
+                Explore ask/agent/research execution patterns and connected context flows.
+              </p>
+              <div className="mt-4">
+                <Button asChild variant="outline" className="h-10 px-4">
+                  <a href="/assistant">Open Assistant</a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Integration Surface</p>
+              <p className="mt-2 text-foreground">
+                Validate MCP routing, provider coverage, and tool-call interfaces across clients.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-10 px-4">
+                  <a href="/mcp">Open MCP</a>
+                </Button>
+                <Button asChild variant="outline" className="h-10 px-4">
+                  <a href="/integrations">Open Integrations</a>
+                </Button>
+              </div>
+            </div>
+
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Docs + API Readiness</p>
+              <p className="mt-2 text-foreground">
+                Go deeper into setup, architecture notes, and workflow documentation.
+              </p>
+              <div className="mt-4">
+                <Button asChild variant="outline" className="h-10 px-4">
+                  <a href="/docs">Open Docs</a>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
+            DX is built for execution at scale: local-first workflows, cloud orchestration, and production-grade tool connectivity without context loss.
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="built-on-rust"
+          title="Built on Rust. Not Node.js. Not Electron."
+          subtitle="DX is engineered in Rust for performance, efficiency, and native-grade responsiveness across platforms."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Speed</p>
+              <p className="mt-2 text-foreground">
+                Near-native performance on every operation.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Efficiency</p>
+              <p className="mt-2 text-foreground">
+                Designed to save RAM and stay responsive under heavy workloads.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Desktop UI</p>
+              <p className="mt-2 text-foreground">
+                GPUI-powered rendering for a fast, responsive native experience.
+              </p>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="generate-anything"
+          title="Generate Literally Anything"
+          subtitle="If you can name it, DX can generate it."
+        >
+          <div className="overflow-x-auto border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Category
+                  </th>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Capabilities
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {generationCategories.map((row) => (
+                  <tr key={row.category} className="border-t border-border">
+                    <td className="p-3 text-foreground">{row.category}</td>
+                    <td className="p-3 text-muted-foreground">
+                      {row.capability}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="token-revolution"
+          title="Token Revolution"
+          subtitle="RLM + DX Serializer + tokenizers + micro-optimizations across the full pipeline."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-foreground">RLM</p>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Saves 80–90% tokens on large file operations by minimizing
+                reference length in context flows.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-foreground">DX Serializer</p>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Saves 70–90% tokens on tool calls by replacing bloated JSON
+                transport.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-foreground">Tokenizers</p>
+              <p className="mt-2 text-muted-foreground text-sm">
+                Image tokenization + compact encodings reduce payload size and
+                keep multimodal workflows affordable.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
+            Token savings compound across the entire workflow, which makes
+            deeper multi-step agents viable — online or offline.
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="works-everywhere"
+          title="Works Everywhere"
+          subtitle="Native apps and extensions across the full development and creative workflow."
+        >
+          <div className="overflow-x-auto border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Platform
+                  </th>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    App Type
+                  </th>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {platforms.map(([platform, appType, status]) => (
+                  <tr key={platform} className="border-t border-border">
+                    <td className="p-3 text-foreground">{platform}</td>
+                    <td className="p-3 text-muted-foreground">{appType}</td>
+                    <td className="p-3 text-foreground">{status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="free-ai"
+          title="Free AI Access — Any Provider, Even Offline"
+          subtitle="Own your workflow. No vendor lock-in."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-border p-5 text-muted-foreground">
+              <p className="text-foreground">Online</p>
+              <p className="mt-2 text-sm">
+                Connect to 100+ LLM providers, open-source models, and
+                self-hosted endpoints.
+              </p>
+            </div>
+            <div className="border border-border p-5 text-muted-foreground">
+              <p className="text-foreground">Offline</p>
+              <p className="mt-2 text-sm">
+                Run capable local models without internet and without token
+                limits.
+              </p>
+            </div>
+            <div className="border border-border p-5 text-muted-foreground">
+              <p className="text-foreground">Hybrid</p>
+              <p className="mt-2 text-sm">
+                Switch seamlessly between cloud and local models based on
+                runtime conditions.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Integrations</p>
+              <p className="mt-2 text-foreground">
+                400+ connects. Link Cloud CLI skills, plugins, and communication
+                apps like WhatsApp, Telegram, and Discord.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Forge</p>
+              <p className="mt-2 text-foreground">
+                Version control for code and viral-ready media — with
+                bring-your-own storage connectors.
+              </p>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="competitive"
+          title="Competitive Positioning"
+          subtitle="Technical differences that matter in production workflows."
+        >
+          <div className="overflow-x-auto border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Feature
+                  </th>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    DX
+                  </th>
+                  <th className="text-left p-3 text-foreground font-medium">
+                    Competitors
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisons.map(([feature, dx, competitors]) => (
+                  <tr key={feature} className="border-t border-border">
+                    <td className="p-3 text-foreground">{feature}</td>
+                    <td className="p-3 text-foreground">{dx}</td>
+                    <td className="p-3 text-muted-foreground">{competitors}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">
+                Forge Storage Strategy
+              </p>
+              <p className="mt-2 text-foreground">
+                Store media to your own platforms: YouTube (unlisted/draft) for
+                video, Pinterest for images, SoundCloud/Spotify-like for audio,
+                Sketchfab-like for 3D, and Git providers for code/docs.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Also supports R2 buckets (pro fallback) and common cloud drives.
+                Availability depends on provider policies.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Traffic Security</p>
+              <p className="mt-2 text-foreground">
+                Green / Yellow / Red safety levels. DX auto-executes harmless
+                work, warns on sensitive actions, and adds backups on risky
+                operations.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Sensitive data is hashed/redacted before third-party calls;
+                optional firewall/VPN/IDS-style protections are part of the DX
+                security layer.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Check Score</p>
+              <p className="mt-2 text-foreground">
+                Anime-style 500 score rank system (F → SSSSS) based on naming,
+                structure, and issues — with suggestions to improve security and
+                quality.
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Includes vulnerability scanning plus code/media linting and
+                audit reports.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Media + Workspace</p>
+              <p className="mt-2 text-foreground">
+                Fetch, organize, and version media across platforms — plus a
+                clean workspace across IDEs, token-efficient serialization, and
+                built-in i18n (translate + STT/TTS).
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Driven workflows (spec-first) + DCP for faster, more
+                token-efficient agent execution.
+              </p>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="forge"
+          title="Forge: Viral-Ready Version Control for More Than Code"
+          subtitle="DX Forge routes output to user-owned platforms so teams get resilient storage + distribution-ready workflows."
+        >
+          <div className="overflow-x-auto border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="text-left p-3 text-foreground font-medium">Asset Type</th>
+                  <th className="text-left p-3 text-foreground font-medium">Primary Storage Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forgeRoutes.map(([type, route]) => (
+                  <tr key={type} className="border-t border-border">
+                    <td className="p-3 text-foreground">{type}</td>
+                    <td className="p-3 text-muted-foreground">{route}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
+            Pro fallback storage remains available (R2 + cloud drives like Google Drive/Dropbox) while default routes prioritize user-owned channels.
+          </div>
+
+          <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pillarPlaybooks.forge.map((step, index) => (
+              <motion.div
+                key={step}
+                className="dx-play-step border border-border p-4"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Forge Step {index + 1}
+                </p>
+                <p className="mt-2 text-sm text-foreground">{step}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <VideoPlaceholderStrip
+            title="Forge Demo Reel"
+            items={pillarVideos.forge}
+          />
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="traffic-security"
+          title="Traffic Security: Green · Yellow · Red"
+          subtitle="DX agents stay autonomous while preserving user safety with level-based execution behavior."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {trafficLevels.map((item) => (
+              <div key={item.level} className="border border-border p-5">
+                <p className="text-sm text-muted-foreground">{item.level}</p>
+                <p className="mt-2 text-foreground">{item.behavior}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
+            Sensitive fields are protected before third-party calls, and high-risk actions receive additional safeguards and monitoring.
+          </div>
+
+          <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pillarPlaybooks.traffic.map((step, index) => (
+              <motion.div
+                key={step}
+                className="dx-play-step border border-border p-4"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Security Step {index + 1}
+                </p>
+                <p className="mt-2 text-sm text-foreground">{step}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <VideoPlaceholderStrip
+            title="Traffic Security Demo Reel"
+            items={pillarVideos.traffic}
+          />
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="check"
+          title="Check: 500-Point Rank System"
+          subtitle="DX Check audits naming, structure, quality, and security to produce a ranked score with direct fix guidance."
+        >
+          <div className="border border-border p-5">
+            <p className="text-sm text-muted-foreground">Rank Ladder</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {checkRanks.map((rank) => (
+                <span key={rank} className="px-2.5 py-1 border border-border text-sm text-foreground">
+                  {rank}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-border p-5 text-sm text-muted-foreground">
+              Security and vulnerability scanning
+            </div>
+            <div className="border border-border p-5 text-sm text-muted-foreground">
+              Code + media linting for quality consistency
+            </div>
+            <div className="border border-border p-5 text-sm text-muted-foreground">
+              Actionable report with prioritized improvements
+            </div>
+          </div>
+
+          <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pillarPlaybooks.check.map((step, index) => (
+              <motion.div
+                key={step}
+                className="dx-play-step border border-border p-4"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Check Step {index + 1}
+                </p>
+                <p className="mt-2 text-sm text-foreground">{step}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <VideoPlaceholderStrip
+            title="Check Demo Reel"
+            items={pillarVideos.check}
+          />
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="media-workspace"
+          title="Media, Workspace, Serializer, i18n, Driven, DCP"
+          subtitle="DX combines multimodal creation with a disciplined workspace and transport layer built for practical production speed."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {mediaPillars.map((pillar) => (
+              <div key={pillar} className="border border-border p-5 text-sm text-muted-foreground">
+                {pillar}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Workspace + Driven</p>
+              <p className="mt-2 text-foreground">
+                Keep execution spec-driven instead of chaotic vibe-coding flows, with cleaner context across IDEs and tools.
+              </p>
+            </div>
+            <div className="border border-border p-5">
+              <p className="text-sm text-muted-foreground">Serializer + i18n + DCP</p>
+              <p className="mt-2 text-foreground">
+                Human-readable, token-efficient transport with global language workflows and faster MCP/ACP/A2A-compatible execution.
+              </p>
+            </div>
+          </div>
+
+          <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pillarPlaybooks.media.map((step, index) => (
+              <motion.div
+                key={step}
+                className="dx-play-step border border-border p-4"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Media Step {index + 1}
+                </p>
+                <p className="mt-2 text-sm text-foreground">{step}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <VideoPlaceholderStrip
+            title="Media Workflow Demo Reel"
+            items={pillarVideos.media}
+          />
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="pricing"
+          title="Pricing"
+          subtitle="Generous free access. Transparent paid tiers."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                title: "Free",
+                price: "$0",
+                details:
+                  "Start with core generation, local workflows, and integrations.",
+              },
+              {
+                title: "Pro",
+                price: "$19/mo",
+                details:
+                  "Higher limits, advanced orchestration, and team-ready workflows.",
+              },
+              {
+                title: "Scale",
+                price: "Custom",
+                details:
+                  "Enterprise controls, private deployment options, and support SLAs.",
+              },
+            ].map((plan) => (
+              <div key={plan.title} className="border border-border p-5">
+                <p className="text-sm text-muted-foreground">{plan.title}</p>
+                <p className="mt-2 text-2xl text-foreground">{plan.price}</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {plan.details}
+                </p>
+              </div>
+            ))}
+          </div>
         </Section>
       </div>
 
@@ -399,14 +1222,21 @@ export function StartPage() {
             className="border border-border p-6 sm:p-10 text-center"
             {...fadeIn}
           >
-            <p className="text-muted-foreground text-sm uppercase tracking-wide">Early Access</p>
-            <h3 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">Be first on DX launch day.</h3>
+            <p className="text-muted-foreground text-sm uppercase tracking-wide">
+              Early Access
+            </p>
+            <h3 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">
+              Be first on DX launch day.
+            </h3>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              Launching February 24, 2026. Join the waitlist for priority access, release notes, and first-week benchmarks.
+              Launching February 24, 2026. Join the waitlist for priority
+              access, release notes, and first-week benchmarks.
             </p>
             <div className="mt-7 flex justify-center">
               <Button asChild className="btn-inverse h-11 px-8">
-                <a href="mailto:hello@dx.ai?subject=DX%20Early%20Access">Join Waitlist</a>
+                <a href="mailto:hello@dx.ai?subject=DX%20Early%20Access">
+                  Join Waitlist
+                </a>
               </Button>
             </div>
           </motion.div>

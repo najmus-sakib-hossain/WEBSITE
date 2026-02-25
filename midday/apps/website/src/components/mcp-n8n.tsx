@@ -100,7 +100,7 @@ Token: ${key}`;
                 Build automated financial workflows
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Connect Midday to n8n workflows via MCP. Use the MCP Client node
+                Connect DX to n8n workflows via MCP. Use the MCP Client node
                 to access your financial data in automated workflows and AI
                 agents.
               </p>
@@ -134,7 +134,7 @@ Token: ${key}`;
                   htmlFor="api-key"
                   className="font-sans text-sm text-foreground"
                 >
-                  Your Midday API key
+                  Your DX API key
                 </label>
                 <Input
                   id="api-key"
@@ -232,7 +232,7 @@ Token: ${key}`;
                   </span>
                   <div className="pt-0.5">
                     <span className="font-sans text-sm text-foreground font-medium">
-                      Use Midday tools
+                      Use DX tools
                     </span>
                     <p className="font-sans text-sm text-muted-foreground mt-1">
                       Access transactions, invoices, customers, reports, and

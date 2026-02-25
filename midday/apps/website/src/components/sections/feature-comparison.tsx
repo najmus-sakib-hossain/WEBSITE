@@ -25,7 +25,7 @@ export function FeatureComparison({ competitor }: Props) {
         Feature comparison
       </h2>
       <p className="font-sans text-base text-muted-foreground mb-8 text-center max-w-2xl mx-auto">
-        See how Midday compares to {competitor.name} across key features.
+        See how DX compares to {competitor.name} across key features.
       </p>
 
       <div className="overflow-x-auto">
@@ -36,7 +36,7 @@ export function FeatureComparison({ competitor }: Props) {
                 Feature
               </th>
               <th className="text-center font-sans font-normal text-sm text-foreground py-4 px-4 w-1/4">
-                Midday
+                DX
               </th>
               <th className="text-center font-sans font-normal text-sm text-muted-foreground py-4 pl-4 w-1/4">
                 {competitor.name}

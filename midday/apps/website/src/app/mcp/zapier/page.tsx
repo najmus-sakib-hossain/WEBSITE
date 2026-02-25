@@ -4,7 +4,7 @@ import { MCPZapier } from "@/components/mcp-zapier";
 
 const title = "Zapier MCP Integration";
 const description =
-  "Connect Midday to 7,000+ apps through Zapier via MCP. Automate financial reports, alerts, and workflows without writing code.";
+  "Connect DX to 7,000+ apps through Zapier via MCP. Automate reports, alerts, and workflows without writing code.";
 
 export const metadata: Metadata = {
   title,

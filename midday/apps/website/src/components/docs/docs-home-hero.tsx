@@ -16,7 +16,7 @@ export function DocsHomeHero() {
           How can we help?
         </h1>
         <p className="text-muted-foreground text-base lg:text-sm xl:text-base max-w-lg mx-auto leading-relaxed mb-8 md:mb-10 px-4 md:px-0">
-          Learn how to run your business smarter with Midday.
+          Learn how to run your business smarter with DX.
         </p>
         <HeroChatInput onSubmit={sendMessage} />
       </div>

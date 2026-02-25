@@ -111,7 +111,7 @@ export function IntegrationDetailPage({ app }: Props) {
                 </h3>
                 <p className="font-sans text-sm text-muted-foreground mb-6">
                   {app.active
-                    ? `Connect ${app.name} to your Midday account and start automating your workflow.`
+                    ? `Connect ${app.name} to your DX account and start automating your workflow.`
                     : `We're working on the ${app.name} integration. Sign up to be notified when it's ready.`}
                 </p>
                 {dashboardUrl ? (

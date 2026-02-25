@@ -20,7 +20,7 @@ export function CompetitorFAQ({ competitor }: Props) {
         Frequently asked questions
       </h2>
       <p className="font-sans text-base text-muted-foreground mb-8 text-center max-w-2xl mx-auto">
-        Common questions about switching from {competitor.name} to Midday.
+        Common questions about switching from {competitor.name} to DX.
       </p>
 
       <div className="max-w-3xl mx-auto space-y-4">

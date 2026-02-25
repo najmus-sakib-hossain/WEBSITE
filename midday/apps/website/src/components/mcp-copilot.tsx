@@ -100,7 +100,7 @@ Header Value: Bearer ${key}`;
                 Query your business data from Microsoft 365
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Connect Midday to Microsoft Copilot Studio. Ask about invoices,
+                Connect DX to Microsoft Copilot Studio. Ask about invoices,
                 transactions, and reports from Word, Excel, Outlook, or any
                 Copilot-enabled app.
               </p>
@@ -135,7 +135,7 @@ Header Value: Bearer ${key}`;
                   htmlFor="api-key"
                   className="font-sans text-sm text-foreground"
                 >
-                  Your Midday API key
+                  Your DX API key
                 </label>
                 <Input
                   id="api-key"
@@ -163,7 +163,7 @@ Header Value: Bearer ${key}`;
                 Connection details
               </h3>
               <p className="font-sans text-sm text-muted-foreground">
-                Use these settings when adding Midday as an MCP server in
+                Use these settings when adding DX as an MCP server in
                 Copilot Studio:
               </p>
               <CodeBlock code={connectionConfig} />
@@ -239,10 +239,10 @@ Header Value: Bearer ${key}`;
                   </span>
                   <div className="pt-0.5">
                     <span className="font-sans text-sm text-foreground font-medium">
-                      Start using Midday tools
+                      Start using DX tools
                     </span>
                     <p className="font-sans text-sm text-muted-foreground mt-1">
-                      Midday's tools will appear in your agent. Ask questions
+                      DX tools will appear in your agent. Ask questions
                       about invoices, transactions, customers, and more.
                     </p>
                   </div>
@@ -262,7 +262,7 @@ Header Value: Bearer ${key}`;
                 </li>
                 <li className="font-sans text-sm text-muted-foreground flex items-start gap-2">
                   <span className="text-foreground">•</span>
-                  Midday API key (create in Settings → Developer)
+                  DX API key (create in Settings → Developer)
                 </li>
               </ul>
               <div className="mt-4">

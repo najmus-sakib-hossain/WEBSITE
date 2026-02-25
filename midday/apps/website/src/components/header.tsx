@@ -13,9 +13,13 @@ interface HeaderProps {
 }
 
 const navigation = [
+  { href: "#story-engine", label: "Story Engine" },
   { href: "#what-is-dx", label: "What is DX" },
+  { href: "#deep-dive", label: "Deep Dive" },
   { href: "#built-on-rust", label: "Built on Rust" },
-  { href: "#generate-anything", label: "Generate" },
+  { href: "#forge", label: "Forge" },
+  { href: "#traffic-security", label: "Security" },
+  { href: "#check", label: "Check" },
   { href: "#token-revolution", label: "Token" },
   { href: "#works-everywhere", label: "Coverage" },
   { href: "#pricing", label: "Pricing" },
@@ -61,7 +65,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
 
         <div className="hidden xl:flex items-center gap-2">
           <Button asChild variant="outline" className="h-9 px-4">
-            <a href="#what-is-dx">Read Docs</a>
+            <a href="/docs">Read Docs</a>
           </Button>
           <Button asChild className="btn-inverse h-9 px-4">
             <a href="#waitlist">Join Waitlist</a>
@@ -98,7 +102,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
             ))}
             <div className="pt-2 grid grid-cols-2 gap-2">
               <Button asChild variant="outline" className="h-9">
-                <a href="#what-is-dx" onClick={() => setIsOpen(false)}>
+                <a href="/docs" onClick={() => setIsOpen(false)}>
                   Read Docs
                 </a>
               </Button>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useGSAP } from "@gsap/react";
+import { Button } from "@midday/ui/button";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Button } from "@midday/ui/button";
 import { motion } from "motion/react";
 import { useRef } from "react";
 
@@ -21,18 +21,18 @@ const dxSections: DxSection[] = [
     id: "token-connection",
     title: "Token Saving → Connection Engine",
     description:
-      "In DX, token efficiency and workflow connection are the same system. RLM + DX Serializer reduce waste while keeping every tool action connected in one live context.",
+      "In DX, token efficiency and workflow connection are the same system. RLM + DX Serializer + tokenizers reduce waste while keeping every tool action connected in one live context.",
     bullets: [
       "RLM saves 80–90% tokens on large file operations.",
       "DX Serializer saves 70–90% tokens on tool calls.",
-      "Lower token cost enables deeper multi-step workflows.",
+      "Compound savings enable deeper multi-step workflows at lower cost.",
     ],
   },
   {
     id: "3d-speed",
     title: "3D Speed, Rust Core",
     description:
-      "DX is built in Rust, so heavy 3D and generation flows run faster with lower memory overhead and better sustained performance.",
+      "DX is built in Rust, so heavy generation (including 3D/AR/VR) runs faster with lower memory overhead and better sustained performance.",
     bullets: [
       "More throughput with less RAM pressure.",
       "Low-end and high-end hardware both stay responsive.",
@@ -51,25 +51,80 @@ const dxSections: DxSection[] = [
     ],
   },
   {
-    id: "modem-400",
-    title: "Integration with Modem 400",
+    id: "connects-400",
+    title: "400+ Connects, One Runtime",
     description:
-      "DX integrates with Modem 400 class workflows so model orchestration, tool calls, and media pipelines stay unified in one interface.",
+      "DX connects providers, tools, and apps (including communication platforms) so model orchestration, tool calls, and media pipelines stay unified in one interface.",
     bullets: [
-      "Single context across providers and tools.",
-      "Connected routing for generation and execution.",
-      "Consistent DX runtime behavior across stacks.",
+      "400+ connects with shared context.",
+      "Link Cloud CLI skills, plugins, and workflows.",
+      "Connect WhatsApp, Telegram, Discord, and more.",
     ],
   },
   {
-    id: "shortcuts-automation",
-    title: "Shortcuts, Automations, Workflow",
+    id: "modes-extensions",
+    title: "Modes + Extensions Everywhere",
     description:
-      "DX automates repeated engineering actions with shortcuts and reusable workflow chains, so teams ship faster with fewer manual steps.",
+      "DX is outcome-first: switch between modes and keep the same workflow across native apps, browser, and production software extensions.",
     bullets: [
-      "Keyboard-first execution flows.",
-      "Reusable automation sequences.",
-      "Cross-tool workflows tied to one source of context.",
+      "Modes: Ask, Agent, Plan, Search, Study, Research.",
+      "Extensions for browsers, IDEs, Figma, Photoshop, DaVinci Resolve.",
+      "Remote web console to manage all devices from the browser.",
+    ],
+  },
+  {
+    id: "forge-media-vcs",
+    title: "Forge: Version Control for Media",
+    description:
+      "Forge brings version control to more than code: videos, images, audio, documents, and 3D assets — with bring-your-own storage connectors.",
+    bullets: [
+      "Video → store to your YouTube channel as unlisted/draft.",
+      "Images → store to your Pinterest account.",
+      "Code/docs → store to GitHub/GitLab/Bitbucket (one or all).",
+    ],
+  },
+  {
+    id: "traffic-security",
+    title: "Traffic Security",
+    description:
+      "DX agents automate work without ignoring risk: a simple Green / Yellow / Red system controls execution, warnings, and safeguards.",
+    bullets: [
+      "Green: auto-executes harmless tasks.",
+      "Yellow: proceeds with warnings/notifications.",
+      "Red: adds stronger warnings and creates safety backups on destructive actions.",
+    ],
+  },
+  {
+    id: "check-score",
+    title: "Check: 500 Score Rank System",
+    description:
+      "DX Check audits structure, naming, and issues to produce a 500 score with anime-style ranks (F → SSSSS), plus actionable improvement suggestions.",
+    bullets: [
+      "Security audit + vulnerability scanning.",
+      "Code linting and media linting.",
+      "Detailed reports with fix suggestions.",
+    ],
+  },
+  {
+    id: "media-platforms",
+    title: "Media: Platforms, Library, Editing",
+    description:
+      "DX supports modern media workflows across audio, video, images, and 3D/AR/VR — with provider connectors, a library, and practical editing tools.",
+    bullets: [
+      "Fetch from providers (images/video/audio/3D) and your linked accounts.",
+      "Organize assets in a media library and collaborate.",
+      "Fonts + icon sets + versioning for media assets.",
+    ],
+  },
+  {
+    id: "workspace-driven-dcp",
+    title: "Workspace + Serializer + i18n + Driven + DCP",
+    description:
+      "DX keeps workspaces clean across IDEs, makes tool calls more token-efficient, and stays spec-driven so agent workflows stay reliable instead of chaotic.",
+    bullets: [
+      "Workspace hygiene across IDEs and tools.",
+      "DX Serializer for fast, readable, compact transport.",
+      "Built-in i18n: translate + STT/TTS workflows.",
     ],
   },
 ];
@@ -81,18 +136,33 @@ function VideoCarousel({ sectionId }: { sectionId: string }) {
     const track = trackRef.current;
     if (!track) return;
     const amount = track.clientWidth * 0.9;
-    track.scrollBy({ left: direction === "next" ? amount : -amount, behavior: "smooth" });
+    track.scrollBy({
+      left: direction === "next" ? amount : -amount,
+      behavior: "smooth",
+    });
   };
 
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Demo carousel</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Demo carousel
+        </p>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" className="h-8 px-3" onClick={() => scrollByViewport("prev")}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 px-3"
+            onClick={() => scrollByViewport("prev")}
+          >
             Prev
           </Button>
-          <Button type="button" variant="outline" className="h-8 px-3" onClick={() => scrollByViewport("next")}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 px-3"
+            onClick={() => scrollByViewport("next")}
+          >
             Next
           </Button>
         </div>
@@ -181,21 +251,34 @@ export function DxVideoCarouselSections({
             transition={{ duration: 0.4 }}
             className="dx-fade-in"
           >
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">DX Route</p>
-            <h1 className="mt-3 font-serif text-3xl sm:text-4xl lg:text-5xl text-foreground">{pageTitle}</h1>
-            <p className="mt-4 text-base text-muted-foreground max-w-3xl">{pageDescription}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              DX Route
+            </p>
+            <h1 className="mt-3 font-serif text-3xl sm:text-4xl lg:text-5xl text-foreground">
+              {pageTitle}
+            </h1>
+            <p className="mt-4 text-base text-muted-foreground max-w-3xl">
+              {pageDescription}
+            </p>
           </motion.div>
         </div>
       </section>
 
       <div className="max-w-[1100px] mx-auto px-4 sm:px-8 space-y-10">
         {dxSections.map((section) => (
-          <section key={section.id} className="dx-fade-in border border-border p-5 sm:p-7">
-            <h2 className="font-serif text-2xl text-foreground">{section.title}</h2>
+          <section
+            key={section.id}
+            className="dx-fade-in border border-border p-5 sm:p-7"
+          >
+            <h2 className="font-serif text-2xl text-foreground">
+              {section.title}
+            </h2>
             <p className="mt-3 text-muted-foreground">{section.description}</p>
             <ul className="mt-4 space-y-2">
               {section.bullets.map((bullet) => (
-                <li key={bullet} className="text-sm text-muted-foreground">• {bullet}</li>
+                <li key={bullet} className="text-sm text-muted-foreground">
+                  • {bullet}
+                </li>
               ))}
             </ul>
             <VideoCarousel sectionId={section.id} />

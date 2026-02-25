@@ -4,7 +4,7 @@ import { MCPPerplexity } from "@/components/mcp-perplexity";
 
 const title = "Perplexity MCP Integration";
 const description =
-  "Connect Perplexity to your Midday data via MCP. Query transactions, invoices, and financial reports with natural language AI search.";
+  "Connect Perplexity to your DX data via MCP. Query transactions, invoices, and reports with natural language AI search.";
 
 export const metadata: Metadata = {
   title,

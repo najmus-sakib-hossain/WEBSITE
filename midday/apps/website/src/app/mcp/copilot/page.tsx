@@ -4,7 +4,7 @@ import { MCPCopilot } from "@/components/mcp-copilot";
 
 const title = "Microsoft Copilot MCP Integration";
 const description =
-  "Connect Midday to Microsoft Copilot Studio via MCP. Query invoices, transactions, and reports from Word, Excel, Outlook, or any Copilot-enabled app.";
+  "Connect DX to Microsoft Copilot Studio via MCP. Query invoices, transactions, and reports from Word, Excel, Outlook, or any Copilot-enabled app.";
 
 export const metadata: Metadata = {
   title,

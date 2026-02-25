@@ -198,11 +198,11 @@ export function MCP() {
                 AI Integrations
               </p>
               <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl leading-tight text-foreground">
-                Midday, everywhere
+                DX, everywhere
               </h1>
               <p className="text-muted-foreground text-base leading-normal font-sans text-center mx-auto">
                 Connect Claude, ChatGPT, Perplexity, Cursor, and more to your
-                Midday data. Ask questions and get answers from your actual
+                DX data. Ask questions and get answers from your actual
                 business data.
               </p>
             </div>
@@ -239,11 +239,11 @@ export function MCP() {
                 AI Integrations
               </p>
               <h1 className="font-serif text-6xl xl:text-7xl 2xl:text-8xl leading-tight text-foreground">
-                Midday, everywhere
+                DX, everywhere
               </h1>
               <p className="text-muted-foreground text-sm xl:text-base leading-normal max-w-2xl mx-auto font-sans text-center">
                 Connect Claude, ChatGPT, Perplexity, Cursor, and more to your
-                Midday data. Ask questions and get answers from your actual
+                DX data. Ask questions and get answers from your actual
                 business data.
               </p>
             </div>

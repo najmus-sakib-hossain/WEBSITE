@@ -100,7 +100,7 @@ Token: ${key}`;
                 Visual automation with financial data
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Connect Midday to Make.com scenarios via MCP. Use the MCP Client
+                Connect DX to Make.com scenarios via MCP. Use the MCP Client
                 module to access your financial data in visual, no-code
                 automations.
               </p>
@@ -134,7 +134,7 @@ Token: ${key}`;
                   htmlFor="api-key"
                   className="font-sans text-sm text-foreground"
                 >
-                  Your Midday API key
+                  Your DX API key
                 </label>
                 <Input
                   id="api-key"
@@ -236,7 +236,7 @@ Token: ${key}`;
                       Select tools and map inputs
                     </span>
                     <p className="font-sans text-sm text-muted-foreground mt-1">
-                      Browse available Midday tools, select one, and map the
+                      Browse available DX tools, select one, and map the
                       input fields visually in the Make interface
                     </p>
                   </div>

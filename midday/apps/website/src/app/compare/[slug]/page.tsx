@@ -23,8 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const year = new Date().getFullYear();
-  const title = `Best ${competitor.name} Alternative for Founders (${year}) | Midday`;
-  const description = `Looking for a ${competitor.name} alternative? Switch to Midday - built for founders, not accountants. Compare features, pricing, and see why teams are making the switch. Free trial available.`;
+  const title = `Best ${competitor.name} Alternative (${year}) | DX`;
+  const description = `Looking for a ${competitor.name} alternative? Switch to DX for connected AI workflows across code, research, automation, and media.`;
   const url = `${baseUrl}/compare/${slug}`;
 
   return {
@@ -33,16 +33,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords: [
       `${competitor.name.toLowerCase()} alternative`,
       `${competitor.name.toLowerCase()} alternative ${year}`,
-      `${competitor.name.toLowerCase()} vs midday`,
+      `${competitor.name.toLowerCase()} vs dx`,
       `switch from ${competitor.name.toLowerCase()}`,
       `${competitor.name.toLowerCase()} pricing`,
       `${competitor.name.toLowerCase()} competitor`,
-      "business finance software",
-      "invoicing software for founders",
-      "expense tracking",
-      "time tracking software",
-      "founder tools",
-      "small business software",
+      "developer workflow platform",
+      "ai automation platform",
+      "multi-modal generation",
+      "agent workflows",
+      "tool orchestration",
+      "cross-platform development",
     ],
     openGraph: {
       title,
@@ -54,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: `${baseUrl}/api/og/compare?name=${encodeURIComponent(competitor.name)}`,
           width: 1200,
           height: 630,
-          alt: `Midday vs ${competitor.name} comparison`,
+          alt: `DX vs ${competitor.name} comparison`,
         },
       ],
     },
@@ -86,21 +86,21 @@ export default async function Page({ params }: Props) {
   const webPageJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: `Best ${competitor.name} Alternative for Founders (${year})`,
-    description: `Looking for a ${competitor.name} alternative? Switch to Midday - built for founders, not accountants.`,
+    name: `Best ${competitor.name} Alternative (${year})`,
+    description: `Looking for a ${competitor.name} alternative? Switch to DX for connected AI workflows.`,
     url: `${baseUrl}/compare/${slug}`,
     mainEntity: {
       "@type": "SoftwareApplication",
-      name: "Midday",
+      name: "DX",
       applicationCategory: "BusinessApplication",
-      operatingSystem: "Web, macOS",
+      operatingSystem: "Web, macOS, Windows, Linux, iOS, Android",
       description:
-        "Business finance software for invoicing, expense tracking, time tracking, and financial insights. Built for founders, not accountants.",
+        "Unified development experience platform for AI workflows, orchestration, automation, and multimodal generation.",
       offers: {
         "@type": "Offer",
-        price: "29",
+        price: "0",
         priceCurrency: "USD",
-        description: "Starting at $29/month with 14-day free trial",
+        description: "Free tier available with optional paid plans",
       },
       aggregateRating: {
         "@type": "AggregateRating",

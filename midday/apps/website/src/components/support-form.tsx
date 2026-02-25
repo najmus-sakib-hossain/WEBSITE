@@ -70,8 +70,8 @@ export function SupportForm() {
             Support
           </h1>
           <p className="font-sans text-base text-muted-foreground leading-relaxed">
-            Get help with Midday. Contact our team for assistance with any
-            questions or issues you may have.
+            Get help with DX. Contact our team for assistance with setup,
+            integrations, and any issues you may have.
           </p>
         </div>
 

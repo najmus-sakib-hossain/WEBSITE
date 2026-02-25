@@ -4,7 +4,7 @@ import { MCPChatGPT } from "@/components/mcp-chatgpt";
 
 const title = "ChatGPT MCP Integration";
 const description =
-  "Build custom ChatGPT integrations with Midday using the MCP SDK. Connect OpenAI-powered apps to your business financial data.";
+  "Build custom ChatGPT integrations with DX using the MCP SDK. Connect OpenAI-powered apps to your business data.";
 
 export const metadata: Metadata = {
   title,

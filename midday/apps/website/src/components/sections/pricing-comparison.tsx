@@ -18,10 +18,10 @@ export function PricingComparison({ competitor }: Props) {
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Midday Pricing */}
+        {/* DX Pricing */}
         <div>
           <h3 className="font-sans text-lg text-foreground mb-6 text-center">
-            Midday
+            DX
           </h3>
           <div className="space-y-4">
             {competitor.pricing.midday.map((tier, index) => (
@@ -59,7 +59,7 @@ export function PricingComparison({ competitor }: Props) {
           </div>
           <div className="mt-6 text-center">
             <Button asChild className="btn-inverse h-10 px-6">
-              <a href="https://app.midday.ai/">Start free trial</a>
+              <a href="#waitlist">Start free trial</a>
             </Button>
             <p className="font-sans text-xs text-muted-foreground mt-2">
               14-day free trial. Cancel anytime.

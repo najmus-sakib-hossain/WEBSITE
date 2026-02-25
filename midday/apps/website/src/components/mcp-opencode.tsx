@@ -191,7 +191,7 @@ export function MCPOpenCode() {
                   htmlFor="api-key"
                   className="font-sans text-sm text-foreground"
                 >
-                  Your Midday API key
+                  Your DX API key
                 </label>
                 <Input
                   id="api-key"
@@ -265,7 +265,7 @@ export function MCPOpenCode() {
                     4
                   </span>
                   <span className="font-sans text-sm text-muted-foreground pt-0.5">
-                    Restart OpenCode and ask about your Midday data
+                    Restart OpenCode and ask about your DX data
                   </span>
                 </li>
               </ol>

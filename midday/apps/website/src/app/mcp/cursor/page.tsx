@@ -4,7 +4,7 @@ import { MCPCursor } from "@/components/mcp-cursor";
 
 const title = "Cursor MCP Integration";
 const description =
-  "Connect Cursor to your Midday data via MCP. Track time, query finances, and access business data directly from your AI-powered code editor.";
+  "Connect Cursor to your DX data via MCP. Track time, query workflows, and access business data directly from your AI-powered code editor.";
 
 export const metadata: Metadata = {
   title,

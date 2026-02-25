@@ -4,7 +4,7 @@ import { SupportForm } from "@/components/support-form";
 
 const title = "Support";
 const description =
-  "Get help with Midday. Contact our team for assistance with any questions or issues you may have.";
+  "Get help with DX. Contact our team for assistance with setup, integrations, and workflow issues.";
 
 export const metadata: Metadata = {
   title,

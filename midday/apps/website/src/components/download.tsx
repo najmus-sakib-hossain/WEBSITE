@@ -58,7 +58,7 @@ export function Download() {
             {/* Title and Description */}
             <div className="space-y-4 text-center max-w-xl w-full">
               <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl leading-tight text-foreground">
-                Midday for Mac
+                DX for Mac
               </h1>
               <p className="text-muted-foreground text-base leading-normal font-sans text-center mx-auto">
                 Quick access to your financial files in a native Mac experience.
@@ -122,7 +122,7 @@ export function Download() {
             {/* Title and Description */}
             <div className="text-center space-y-4 w-full">
               <h1 className="font-serif text-6xl xl:text-7xl 2xl:text-8xl leading-tight text-foreground">
-                Midday for Mac
+                DX for Mac
               </h1>
               <p className="text-muted-foreground text-sm xl:text-base leading-normal max-w-xl mx-auto font-sans text-center">
                 Quick access to your financial files in a native Mac experience.
@@ -160,7 +160,7 @@ export function Download() {
                   Native performance
                 </h2>
                 <p className="font-sans text-base text-muted-foreground leading-normal">
-                  Midday runs fast and light on Apple silicon, so everything
+                  DX runs fast and light on Apple silicon, so everything
                   stays responsive and out of your way.
                 </p>
               </div>
@@ -202,7 +202,7 @@ export function Download() {
                 </h2>
                 <p className="font-sans text-base text-muted-foreground leading-normal">
                   Press <span className="text-foreground font-mono">⇧⌥K</span>{" "}
-                  to search Midday from anywhere on your Mac. Instantly find
+                  to search DX from anywhere on your Mac. Instantly find
                   receipts, invoices, transactions, customers, and files.
                 </p>
               </div>

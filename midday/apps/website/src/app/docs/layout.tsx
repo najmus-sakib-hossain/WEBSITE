@@ -4,7 +4,8 @@ import { DocsChatProvider } from "@/components/docs/docs-chat-provider";
 
 export const metadata = {
   title: "Documentation",
-  description: "Learn how to use Midday to run your business finances",
+  description:
+    "Learn how to use DX for connected AI workflows and development operations",
 };
 
 export default function DocsLayout({ children }: { children: ReactNode }) {

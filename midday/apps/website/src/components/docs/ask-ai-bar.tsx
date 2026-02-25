@@ -79,7 +79,7 @@ function PerplexityIcon({ className }: { className?: string }) {
 
 export function AskAiBar({ title, description }: AskAiBarProps) {
   const prompt = encodeURIComponent(
-    `I'm reading the Midday documentation about "${title}". ${description ? `The page describes: ${description}` : ""}\n\nHelp me understand this topic better. What are the key things I should know about ${title.toLowerCase()} in Midday?`,
+    `I'm reading the DX documentation about "${title}". ${description ? `The page describes: ${description}` : ""}\n\nHelp me understand this topic better. What are the key things I should know about ${title.toLowerCase()} in DX?`,
   );
 
   const aiLinks = [

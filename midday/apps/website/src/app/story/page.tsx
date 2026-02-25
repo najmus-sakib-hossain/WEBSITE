@@ -4,7 +4,7 @@ import { baseUrl } from "@/app/sitemap";
 
 const title = "Story";
 const description =
-  "Why we built Midday. Learn about our mission to help founders and small teams stay on top of their business finances without the manual work.";
+  "Why we built DX. Learn about our mission to unify AI workflows, tooling, and media creation into one development experience.";
 
 export const metadata: Metadata = {
   title,
@@ -34,7 +34,7 @@ export default function StoryPage() {
             {/* Title */}
             <div className="space-y-4 text-center">
               <h1 className="font-serif text-3xl lg:text-3xl xl:text-3xl 2xl:text-3xl 3xl:text-4xl leading-tight lg:leading-tight xl:leading-[1.3] text-foreground">
-                Why we started Midday
+                Why we started DX
               </h1>
             </div>
 
@@ -46,23 +46,19 @@ export default function StoryPage() {
                   The problem
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  Running a business shouldn't require constant checking just to
-                  know where things stand.
+                  Building software and media products shouldn't require ten
+                  disconnected tools just to ship one outcome.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  After years of running our own companies, we kept running into
-                  the same friction. Time tracking lived in one place. Invoices
-                  in another. Receipts scattered across inboxes and folders.
-                  Transactions buried in bank dashboards. And when something
-                  changed, you often found out too late or only after digging
-                  through numbers.
+                  We kept hitting the same wall: code generation in one app,
+                  research in another, automations in another, and media work
+                  spread everywhere else. Context was constantly lost between
+                  tools, and shipping became slower than it should be.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Most tools handling this work focus on individual tasks. They
-                  rarely work together, and even more rarely help you stay on
-                  top of your business without manual effort. The result is too
-                  much context switching, too many tools, and a constant feeling
-                  of being slightly behind.
+                  Most products optimize only one slice of the workflow. DX was
+                  created to connect the whole system: generation, tooling,
+                  orchestration, and media in one runtime.
                 </p>
               </section>
 
@@ -77,29 +73,24 @@ export default function StoryPage() {
                   The idea
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  We didn't want another finance tool. We wanted a system that
-                  works for you.
+                  We didn't want another isolated AI app. We wanted a system
+                  that works for you.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Midday is built around the idea that your finances should stay
-                  reconciled, explained, and monitored as your business changes
-                  — without you having to constantly check dashboards or chase
-                  updates. Time, invoices, receipts, transactions, and documents
-                  shouldn't live in silos. They should reinforce each other and
-                  reflect what's actually happening.
+                  DX is built around one principle: if workflows are connected,
+                  users move faster with less effort. Code, research, tool
+                  calls, documents, images, video, and 3D workflows should not
+                  live in silos.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Instead of pulling information out of the system, Midday
-                  pushes the right information to you. Summaries, notifications,
-                  and clear signals help you understand what's changed, what
-                  needs attention, and what's on track. That way, you stay
-                  informed without living inside financial software.
+                  Instead of forcing users to glue everything manually, DX keeps
+                  context shared across operations. The same intent can power
+                  Ask, Agent, Plan, Search, Study, and Research workflows.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Midday doesn't replace your accountant. It sits in between,
-                  keeping everything organized, connected, and ready, so
-                  conversations are easier and decisions are based on up-to-date
-                  information.
+                  We built DX in Rust because speed and efficiency matter when
+                  workflows get complex. Token optimization, offline support,
+                  and cross-platform execution are all part of that foundation.
                 </p>
               </section>
 
@@ -114,28 +105,25 @@ export default function StoryPage() {
                   What we're focused on
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  Midday is built for founders and small teams who want to feel
-                  on top of their business without spending their time managing
-                  financial admin.
+                  DX is built for developers, creators, and teams who want one
+                  system that can keep up with real production work.
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
                   We focus on:
                 </p>
                 <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-4">
-                  <li>Reducing manual and repetitive work</li>
-                  <li>Keeping financial data consistent and reliable</li>
-                  <li>Surfacing the right information at the right time</li>
-                  <li>Making it easy to understand what's happening and why</li>
-                  <li>
-                    Building software that works quietly in the background
-                  </li>
+                  <li>Reducing context switching across tools</li>
+                  <li>Keeping AI workflows spec-driven and reliable</li>
+                  <li>Making advanced capabilities usable by everyone</li>
+                  <li>Improving speed, token efficiency, and cost control</li>
+                  <li>Building systems that stay practical in daily use</li>
                 </ul>
                 <p className="text-muted-foreground leading-relaxed mt-4">
-                  Our goal is simple: when you use Midday, you shouldn't have to
-                  wonder how your business is doing.
+                  Our goal is simple: when you use DX, you should spend less
+                  time stitching tools together and more time shipping.
                 </p>
                 <p className="text-muted-foreground leading-relaxed font-medium">
-                  Your finances should explain themselves.
+                  Your workflow should explain itself.
                 </p>
               </section>
             </div>
@@ -155,7 +143,7 @@ export default function StoryPage() {
                   Pontus & Viktor
                 </p>
                 <p className="font-sans text-sm text-muted-foreground">
-                  Founders, Midday
+                  Founders, DX
                 </p>
               </div>
             </div>

@@ -110,7 +110,7 @@ export function MCPPerplexity() {
                 AI-powered search meets your data
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Connect Perplexity to your Midday account to query transactions,
+                Connect Perplexity to your DX account to query transactions,
                 invoices, and financial reports with natural language. Get
                 instant answers backed by your real business data.
               </p>
@@ -219,7 +219,7 @@ export function MCPPerplexity() {
                     4
                   </span>
                   <span className="font-sans text-sm text-muted-foreground pt-0.5">
-                    Restart Perplexity and ask questions about your Midday data
+                    Restart Perplexity and ask questions about your DX data
                   </span>
                 </li>
               </ol>

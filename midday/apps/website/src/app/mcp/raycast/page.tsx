@@ -4,7 +4,7 @@ import { MCPRaycast } from "@/components/mcp-raycast";
 
 const title = "Raycast MCP Integration";
 const description =
-  "Access Midday financial data directly from Raycast via MCP. Keyboard-first access to invoices, transactions, and business reports.";
+  "Access DX data directly from Raycast via MCP. Keyboard-first access to invoices, transactions, and business reports.";
 
 export const metadata: Metadata = {
   title,

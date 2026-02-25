@@ -224,7 +224,7 @@ export const ChatPanel = forwardRef<ChatPanelRef, ChatPanelProps>(
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-6">
-                    Ask anything about Midday
+                    Ask anything about DX
                   </p>
                   <div className="flex flex-wrap gap-1.5 justify-center max-w-md">
                     {[

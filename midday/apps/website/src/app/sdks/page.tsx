@@ -4,7 +4,7 @@ import { SDKs } from "@/components/sdks";
 
 const title = "SDKs";
 const description =
-  "Typed SDKs to build faster with Midday. Integrate Midday into your applications with our official client libraries.";
+  "Typed SDKs to build faster with DX. Integrate DX into your applications with our official client libraries.";
 
 export const metadata: Metadata = {
   title,

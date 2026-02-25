@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { page } = await params;
   const title = `Updates - Page ${page}`;
   const description =
-    "The latest updates and improvements to Midday. See what we've been building to help you manage your business finances better.";
+    "The latest updates and improvements to DX. See what we've been building to help teams run smarter workflows.";
   const url = `${baseUrl}/updates/page/${page}`;
 
   return {

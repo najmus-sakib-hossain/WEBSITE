@@ -151,7 +151,7 @@ await client.close();`;
                 Financial data in ChatGPT
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                ChatGPT supports MCP servers in developer mode. Connect Midday
+                ChatGPT supports MCP servers in developer mode. Connect DX
                 to query your transactions, invoices, and reports directly in
                 ChatGPT conversations.
               </p>

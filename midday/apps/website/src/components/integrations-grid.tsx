@@ -22,9 +22,9 @@ export function IntegrationsGrid({
             Integrations
           </h1>
           <p className="font-sans text-base text-muted-foreground leading-normal">
-            Connect Midday with the tools you already use. From email and
+            Connect DX with the tools you already use. From email and
             messaging to accounting software, our integrations help you
-            streamline your financial workflow.
+            streamline your workflow.
           </p>
         </div>
       </div>
@@ -112,7 +112,7 @@ export function IntegrationsGrid({
             </h2>
             <p className="font-sans text-base text-muted-foreground mb-6 max-w-lg mx-auto">
               We're always adding new integrations. Let us know what tools you'd
-              like to connect with Midday.
+              like to connect with DX.
             </p>
             <Link
               href="/support"

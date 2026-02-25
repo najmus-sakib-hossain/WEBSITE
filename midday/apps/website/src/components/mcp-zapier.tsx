@@ -100,7 +100,7 @@ Bearer Token: ${key}`;
                 Automate your business workflows
               </h2>
               <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                Connect Midday to 7,000+ apps through Zapier. Build automated
+                Connect DX to 7,000+ apps through Zapier. Build automated
                 workflows for reports, alerts, and data syncing—no code
                 required.
               </p>
@@ -134,7 +134,7 @@ Bearer Token: ${key}`;
                   htmlFor="api-key"
                   className="font-sans text-sm text-foreground"
                 >
-                  Your Midday API key
+                  Your DX API key
                 </label>
                 <Input
                   id="api-key"
@@ -243,7 +243,7 @@ Bearer Token: ${key}`;
                       Create your first Zap
                     </span>
                     <p className="font-sans text-sm text-muted-foreground mt-1">
-                      Use "MCP Client by Zapier" in your Zaps to access Midday's
+                      Use "MCP Client by Zapier" in your Zaps to access DX
                       tools for transactions, invoices, reports, and more
                     </p>
                   </div>

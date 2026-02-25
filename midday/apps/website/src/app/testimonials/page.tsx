@@ -4,7 +4,7 @@ import { Testimonials } from "@/components/testimonials";
 
 const title = "Customer Stories";
 const description =
-  "See how founders and small teams use Midday to manage their finances and run their businesses.";
+  "See how builders and teams use DX to streamline development workflows and ship faster.";
 
 export const metadata: Metadata = {
   title,
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   keywords: [
     "customer testimonials",
     "user stories",
-    "midday reviews",
+    "dx reviews",
     "customer success",
     "testimonials",
   ],

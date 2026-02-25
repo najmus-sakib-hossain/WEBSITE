@@ -178,7 +178,7 @@ export function MCPRaycast() {
                     3
                   </span>
                   <span className="font-sans text-sm text-muted-foreground pt-0.5">
-                    Open Raycast's "Manage Servers" and edit Midday to add your
+                    Open Raycast's "Manage Servers" and edit DX to add your
                     API key
                   </span>
                 </li>
@@ -187,7 +187,7 @@ export function MCPRaycast() {
                     4
                   </span>
                   <span className="font-sans text-sm text-muted-foreground pt-0.5">
-                    @-mention Midday in Raycast AI to query your data
+                    @-mention DX in Raycast AI to query your data
                   </span>
                 </li>
               </ol>

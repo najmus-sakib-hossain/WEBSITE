@@ -4,7 +4,7 @@ import { MCPN8n } from "@/components/mcp-n8n";
 
 const title = "n8n MCP Integration";
 const description =
-  "Connect Midday to n8n workflows via MCP. Build automated financial workflows with AI agents and connect to 400+ apps.";
+  "Connect DX to n8n workflows via MCP. Build automated workflows with AI agents and connect to 400+ apps.";
 
 export const metadata: Metadata = {
   title,

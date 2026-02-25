@@ -4,7 +4,7 @@ import { MCPOpenCode } from "@/components/mcp-opencode";
 
 const title = "OpenCode MCP Integration";
 const description =
-  "Connect OpenCode to your Midday data via MCP. Track time for client projects, start timers, and log hours directly from your terminal.";
+  "Connect OpenCode to your DX data via MCP. Track time for client projects, start timers, and log hours directly from your terminal.";
 
 export const metadata: Metadata = {
   title,

@@ -162,8 +162,8 @@ export function Testimonials() {
               Customer Stories
             </h1>
             <p className="font-sans text-base text-muted-foreground leading-normal mb-8">
-              See how founders and small teams use Midday to manage their
-              finances and run their businesses.
+              See how builders and teams use DX to streamline workflows and ship
+              faster.
             </p>
           </div>
         </div>
