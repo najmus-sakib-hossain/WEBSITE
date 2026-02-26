@@ -1,3 +1,18 @@
+As you can see from the screenshot, in our Download Apps Icon Cards, the MacOS and iOS icons are the same. Please use different icons there. Those two operating systems are lowercase, so please make them camel case like other operating systems.
+Also, next to VPS, please add another icon card with more icons that represent that we support more operating systems. For Mac OS, Linux, and Windows, these three operating systems have cull command. Others don't have any cull command.
+Please also put the details that cull command automatically downloads all DX extensions by reading your operating system correctly. 
+
+Good, please update some information about our website and the software from our website correctly:
+1. We will launch on 3rd March 2026; 
+2. please remove the LinkedIn from our company and other places and put Discord there.
+3. And in our landing page header download operating system icon cards:
+- Please add VPS icon and also more icon.
+- When the download card is hovered please show a shadcn-UI hovered card.
+- In the hovered card please show details about the download process of each operating system.
+- If you have any stuff present in the UI, like if it's macOS, Windows, and Linux desktop apps, then in the hovered card also put a would copy UI where you put the curl command to download the dx binary.
+- For other operating systems please put other details of the download process like for our browser we only support the browser extension that requires it to be downloaded as an extension file and manually uploading it in the browser, things like that.
+- Please show all the details there correctly.
+
 Awesome now please do these:
 1. there is transparent popovers and selection in the header so please use our design system background colors correctly
 2. We are dx - just "dx" not dxlabs or other so please rename every typos from our website

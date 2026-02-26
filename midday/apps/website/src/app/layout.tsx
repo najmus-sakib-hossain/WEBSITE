@@ -96,7 +96,7 @@ const jsonLd = {
   logo: "https://cdn.dx.ai/logo.png",
   sameAs: [
     "https://x.com/dxai",
-    "https://linkedin.com/company/dx-ai",
+    "https://discord.gg/dxai",
     "https://github.com/dxai",
   ],
   description:

@@ -168,7 +168,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
         {/* Desktop CTAs */}
         <div className="hidden xl:flex items-center gap-2">
           <Button asChild variant="outline" className="h-9 px-4">
-            <Link href="/docs">Read Docs</Link>
+            <Link href="/docs">Read Blogs</Link>
           </Button>
           <Button asChild className="btn-inverse h-9 px-4">
             <Link href="/download">Explore DX</Link>

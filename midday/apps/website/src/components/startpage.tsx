@@ -22,7 +22,7 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { DxAiFace } from "./dx-ai-face";
 import { DxVideoShowcases } from "./dx-video-showcases";
-import { PlatformIcons } from "./platform-icons";
+import { PlatformDownloadCards } from "./platform-download-cards";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -232,12 +232,12 @@ const trafficLevels = [
   },
 ];
 
-const checkRanks = ["F", "E", "D", "C", "B", "A", "S", "SS", "SSS", "SSSS", "SSSSS"];
+const checkRanks = ["F", "E", "D", "C", "B", "A", "S"];
 
 const mediaPillars = [
   "Unified support for audio, video, image, and 3D/AR/VR providers",
   "Built-in media library with organization and collaborative workflows",
-  "5000+ fonts, 219+ icon sets, and 1M+ icons",
+  "5000+ fonts, 219+ icon sets and 1M+ icons, Images, Video, Audio, 3d assets and much more...",
   "Version control for media assets with rollback support",
   "Custom provider linking and reusable asset workflows",
 ];
@@ -719,7 +719,7 @@ export function StartPage() {
       <section className="pt-32 sm:pt-24">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
           <div className="dx-reveal text-center">
-            {/* <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching February 24, 2026</p> */}
+            {/* <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching March 3, 2026</p> */}
             <div className="flex justify-center">
               <DxAiFace size={280} interactive={true} />
             </div>
@@ -734,8 +734,8 @@ export function StartPage() {
               faster with less tool friction.
             </p>
             
-            {/* Platform Icons */}
-            <PlatformIcons />
+            {/* Platform Download Cards */}
+            <PlatformDownloadCards />
             
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Button asChild className="btn-inverse h-11 px-6">
@@ -1718,7 +1718,7 @@ export function StartPage() {
         </div>
       </section>
 
-      <section className="dx-reveal pt-14">
+      {/* <section className="dx-reveal pt-14">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
           <Card className="text-center">
             <CardContent className="p-6 sm:p-10">
@@ -1738,7 +1738,7 @@ export function StartPage() {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </section> */}
 
       <section id="waitlist" className="dx-reveal pt-14">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
@@ -1756,7 +1756,7 @@ export function StartPage() {
               Be first on DX launch day.
             </h3>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              Launching February 24, 2026. Join the waitlist for priority
+              Launching March 3, 2026. Join the waitlist for priority
               access, release notes, and first-week benchmarks.
             </p>
             <div className="mt-7 flex justify-center">

@@ -4,6 +4,7 @@ import { cn } from "@midday/ui/cn";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { ThemeToggle } from "./theme-toggle";
 
 type FooterLink = {
   href: string;
@@ -29,15 +30,6 @@ export function Footer() {
     return () => clearInterval(interval);
   }, []);
 
-  const docsQuickLinks: FooterLink[] = [
-    { href: "/docs/getting-started", label: "Getting Started" },
-    { href: "/docs/shortcuts", label: "Shortcuts" },
-    { href: "/docs/workflows", label: "Workflows" },
-    { href: "/docs/mcp-apps", label: "MCP Apps" },
-    { href: "/docs/offline", label: "Offline" },
-    { href: "/docs/api", label: "API" },
-  ];
-
   const sections: FooterSection[] = [
     {
       title: "Product",
@@ -59,6 +51,8 @@ export function Footer() {
         { href: "/docs/shortcuts", label: "Shortcuts" },
         { href: "/docs/workflows", label: "Workflows" },
         { href: "/docs/mcp-apps", label: "MCP Apps" },
+        { href: "/docs/offline", label: "Offline" },
+        { href: "/docs/api", label: "API" },
       ],
     },
     {
@@ -71,8 +65,8 @@ export function Footer() {
         { href: "/terms", label: "Terms" },
         { href: "https://x.com/dxai", label: "X / Twitter", external: true },
         {
-          href: "https://www.linkedin.com/company/dx-ai",
-          label: "LinkedIn",
+          href: "https://discord.gg/dxai",
+          label: "Discord",
           external: true,
         },
       ],
@@ -82,11 +76,12 @@ export function Footer() {
   return (
     <footer className="bg-background relative overflow-hidden border-t border-border">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-8 py-16 sm:pb-44">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-14 lg:gap-20">
+          {/* Left side - Links */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-12">
             {sections.map((section) => (
-              <div key={section.title} className="space-y-3">
-                <h3 className="font-sans text-sm text-foreground mb-4">
+              <div key={section.title} className="space-y-4">
+                <h3 className="font-sans text-sm font-medium text-foreground">
                   {section.title}
                 </h3>
                 <div className="space-y-2.5">
@@ -102,51 +97,37 @@ export function Footer() {
                     </Link>
                   ))}
                 </div>
-
-                {section.title === "Platform" ? (
-                  <div className="pt-3">
-                    <p className="font-sans text-xs text-muted-foreground mb-2">
-                      Quick links
-                    </p>
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {docsQuickLinks.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="font-sans text-xs text-muted-foreground hover:text-foreground transition-colors block"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ))}
           </div>
 
-          <div className="flex flex-col items-start lg:items-end gap-6 lg:gap-10">
-            <p className="font-sans text-base sm:text-xl text-foreground text-left lg:text-right max-w-lg">
+          {/* Right side - Description */}
+          <div className="flex flex-col items-start lg:items-end gap-4">
+            <h4 className="font-sans text-lg font-medium text-foreground text-left lg:text-right">
+              The Developer Experience You Actually Deserve
+            </h4>
+            <p className="font-sans text-sm text-muted-foreground text-left lg:text-right max-w-md leading-relaxed">
               DX unifies AI generation, tool calling, media creation, and deep
               workflow integration into one development experience.
             </p>
-            <p className="font-sans text-sm text-muted-foreground text-left lg:text-right max-w-lg">
+            <p className="font-sans text-xs text-muted-foreground text-left lg:text-right max-w-md">
               Built in Rust. Optimized with RLM and DX Serializer. Designed for
               developers who ship.
             </p>
           </div>
         </div>
 
-        <div className="my-14">
+        <div className="my-10">
           <div className="h-px w-full border-t border-border" />
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-4">
+          {/* Left - System Status */}
           <a
             href="https://dx.openstatus.dev/"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:flex items-center gap-2 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <span className="font-sans text-sm text-muted-foreground">
               System status:
@@ -155,6 +136,13 @@ export function Footer() {
               Operational
             </span>
           </a>
+
+          {/* Center - Theme Toggle */}
+          <div className="flex justify-center md:absolute md:left-1/2 md:-translate-x-1/2">
+            <ThemeToggle />
+          </div>
+
+          {/* Right - Copyright */}
           <p className="font-sans text-sm text-muted-foreground">
             © {new Date().getFullYear()} dx. All rights reserved.
           </p>
