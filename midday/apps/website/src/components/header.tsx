@@ -65,7 +65,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
 
         {/* Desktop nav */}
         {!hideMenuItems ? (
-          <nav className="hidden xl:flex items-center gap-1 mx-auto">
+          <nav className="hidden xl:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {/* Home */}
             <Link
               href="/"

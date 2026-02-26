@@ -230,3 +230,16 @@ img[loading],
 img[decoding] {
   filter: contrast(1.15) brightness(1.1) saturate(1.1);
 }
+
+/* Tighter letter spacing for JetBrains Mono */
+body {
+  letter-spacing: -0.02em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.03em;
+}
+
+p, span, div {
+  letter-spacing: -0.01em;
+}
