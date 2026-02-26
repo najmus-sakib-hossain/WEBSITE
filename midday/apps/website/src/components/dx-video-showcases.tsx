@@ -5,17 +5,42 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 
+const THUMBS = [
+  "/thumbnails/amber.png",
+  "/thumbnails/blue.png",
+  "/thumbnails/cyan.png",
+  "/thumbnails/emerald.png",
+  "/thumbnails/fuchsia.png",
+  "/thumbnails/green-variant.png",
+  "/thumbnails/green.png",
+  "/thumbnails/indigo.png",
+  "/thumbnails/lime.png",
+  "/thumbnails/orange.png",
+  "/thumbnails/pink.png",
+  "/thumbnails/purple.png",
+  "/thumbnails/rainbow.png",
+  "/thumbnails/red.png",
+  "/thumbnails/rose.png",
+  "/thumbnails/sky.png",
+  "/thumbnails/teal.png",
+  "/thumbnails/variant-1.png",
+  "/thumbnails/variant-2.png",
+  "/thumbnails/violet.png",
+  "/thumbnails/yellow.png",
+] as const;
+const thumb = (i: number): string => THUMBS[i % THUMBS.length] as string;
+
 type VideoItem = {
   title: string;
   subtitle: string;
 };
 
-function VideoPlaceholder({ item }: { item: VideoItem }) {
+function VideoPlaceholder({ item, index = 0 }: { item: VideoItem; index?: number }) {
   return (
     <div className="border border-border bg-background overflow-hidden">
       <div className="relative aspect-video border-b border-border">
         <Image
-          src="/images/thumbnail.png"
+          src={thumb(index)}
           alt={item.title}
           fill
           className="object-cover"
@@ -83,7 +108,7 @@ function ThreeUpCarousel() {
               animate={{ opacity: isCenter ? 1 : 0.62, scale: isCenter ? 1 : 0.95 }}
               transition={{ duration: 0.35 }}
             >
-              <VideoPlaceholder item={items[index] ?? items[0]!} />
+              <VideoPlaceholder item={items[index] ?? items[0]!} index={index} />
             </motion.div>
           );
         })}
@@ -108,9 +133,7 @@ function CenteredThumbCarousel() {
   return (
     <div>
       <div className="max-w-4xl mx-auto">
-        <VideoPlaceholder item={items[active] ?? items[0]!} />
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+        <VideoPlaceholder item={items[active] ?? items[0]!} index={active + 4} />
         {items.map((item, index) => (
           <button
             key={`thumb-${item.title}`}
@@ -142,7 +165,7 @@ function FullBleedCaptionCarousel() {
 
   return (
     <div>
-      <VideoPlaceholder item={items[active] ?? items[0]!} />
+      <VideoPlaceholder item={items[active] ?? items[0]!} index={active + 8} />
       <p className="mt-3 text-sm text-muted-foreground">Caption: {items[active]?.title}</p>
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
         {items.map((item, index) => (
@@ -187,7 +210,7 @@ function SplitMcpCarousel() {
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-border p-4">
-        <VideoPlaceholder item={{ title: steps[active]?.title ?? "MCP", subtitle: "MCP Apps Integration" }} />
+        <VideoPlaceholder item={{ title: steps[active]?.title ?? "MCP", subtitle: "MCP Apps Integration" }} index={active + 13} />
         <div className="border border-border p-4">
           <p className="text-sm text-muted-foreground">Step {active + 1} of {steps.length}</p>
           <h4 className="mt-2 text-xl font-serif text-foreground">{steps[active]?.title}</h4>
@@ -237,7 +260,7 @@ function CardStackOfflineCarousel() {
             transition={{ duration: 0.35, delay: index * 0.05 }}
             className="w-[290px] sm:w-[360px]"
           >
-            <VideoPlaceholder item={item} />
+            <VideoPlaceholder item={item} index={index + 17} />
           </motion.div>
         ))}
       </div>
@@ -300,7 +323,7 @@ function TabbedWorkflowCarousel() {
         ))}
       </div>
 
-      <VideoPlaceholder item={item} />
+      <VideoPlaceholder item={item} index={tabs.findIndex((t) => t.key === activeTab) * 3 + activeVideoIndex} />
       <div className="mt-4 flex flex-wrap gap-2">
         {tab.items.map((tabItem, index) => (
           <button

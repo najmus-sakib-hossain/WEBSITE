@@ -25,6 +25,31 @@ import { DxVideoShowcases } from "./dx-video-showcases";
 
 gsap.registerPlugin(ScrollTrigger);
 
+const THUMBS = [
+  "/thumbnails/amber.png",
+  "/thumbnails/blue.png",
+  "/thumbnails/cyan.png",
+  "/thumbnails/emerald.png",
+  "/thumbnails/fuchsia.png",
+  "/thumbnails/green-variant.png",
+  "/thumbnails/green.png",
+  "/thumbnails/indigo.png",
+  "/thumbnails/lime.png",
+  "/thumbnails/orange.png",
+  "/thumbnails/pink.png",
+  "/thumbnails/purple.png",
+  "/thumbnails/rainbow.png",
+  "/thumbnails/red.png",
+  "/thumbnails/rose.png",
+  "/thumbnails/sky.png",
+  "/thumbnails/teal.png",
+  "/thumbnails/variant-1.png",
+  "/thumbnails/variant-2.png",
+  "/thumbnails/violet.png",
+  "/thumbnails/yellow.png",
+] as const;
+const thumb = (i: number): string => THUMBS[i % THUMBS.length] as string;
+
 const marqueeCompanies = [
   "Arcforge",
   "Neonstack",
@@ -432,9 +457,11 @@ function Section({
 function VideoPlaceholderStrip({
   title,
   items,
+  startIndex = 0,
 }: {
   title: string;
   items: string[];
+  startIndex?: number;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -478,14 +505,14 @@ function VideoPlaceholderStrip({
         ref={trackRef}
         className="mt-4 flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {items.map((item) => (
+        {items.map((item, itemIndex) => (
           <div
             key={item}
             className="dx-video-card min-w-[260px] sm:min-w-[320px] md:min-w-[360px] border border-border overflow-hidden"
           >
             <div className="relative h-36 sm:h-40">
               <Image
-                src="/images/thumbnail.png"
+                src={thumb(startIndex + itemIndex)}
                 alt={item}
                 fill
                 className="object-cover"
@@ -511,10 +538,12 @@ function FeatureHeroBanner({
   label,
   headline,
   sub,
+  imgIndex = 0,
 }: {
   label: string;
   headline: string;
   sub: string;
+  imgIndex?: number;
 }) {
   return (
     <motion.section
@@ -526,7 +555,7 @@ function FeatureHeroBanner({
     >
       <div className="relative h-[320px] sm:h-[380px]">
         <Image
-          src="/images/thumbnail.png"
+          src={thumb(imgIndex)}
           alt={headline}
           fill
           className="object-cover"
@@ -774,12 +803,13 @@ export function StartPage() {
         </motion.div>
       </div>
 
-      {heroFeatures.map((feature) => (
+      {heroFeatures.map((feature, index) => (
         <FeatureHeroBanner
           key={feature.label}
           label={feature.label}
           headline={feature.headline}
           sub={feature.sub}
+          imgIndex={index}
         />
       ))}
 
@@ -790,7 +820,7 @@ export function StartPage() {
           subtitle="A single runtime that compresses cost, keeps context, and scales from local execution to multi-provider production workflows."
         >
           <div className="dx-story-rail grid grid-cols-1 md:grid-cols-2 gap-4">
-            {storyRail.map((item) => (
+            {storyRail.map((item, idx) => (
               <motion.div
                 key={item.step}
                 className="dx-story-card border border-border p-5"
@@ -803,10 +833,17 @@ export function StartPage() {
                 <h3 className="mt-2 text-lg text-foreground font-medium">{item.title}</h3>
                 <p className="mt-2 text-sm text-foreground">{item.metric}</p>
                 <p className="mt-3 text-sm text-muted-foreground">{item.detail}</p>
-                <div className="mt-4 h-28 border border-border bg-secondary/30 flex items-center justify-center">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Demo Placeholder
-                  </span>
+                <div className="relative mt-4 h-28 overflow-hidden border border-border">
+                  <Image
+                    src={thumb(idx + 15)}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                    sizes="400px"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <span className="text-white text-2xl">▶</span>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -1246,6 +1283,7 @@ export function StartPage() {
         label="DX Forge"
         headline="Viral-Ready Version Control — Code, Media, Models, Everything"
         sub="Store output to your own channels, version every asset, and distribute with a built-in flywheel. This is version control for creators and developers alike."
+        imgIndex={6}
       />
 
       <div className="dx-home-section">
@@ -1298,6 +1336,7 @@ export function StartPage() {
           <VideoPlaceholderStrip
             title="Forge Demo Reel"
             items={pillarVideos.forge}
+            startIndex={10}
           />
         </Section>
       </div>
@@ -1306,6 +1345,7 @@ export function StartPage() {
         label="Traffic Security"
         headline="Your AI Agent Stays Autonomous — And Safe"
         sub="Green means go. Yellow means warn. Red means guard. DX moves fast without sacrificing trust, and your sensitive data never reaches third-party calls unprotected."
+        imgIndex={7}
       />
 
       <div className="dx-home-section">
@@ -1351,6 +1391,7 @@ export function StartPage() {
           <VideoPlaceholderStrip
             title="Traffic Security Demo Reel"
             items={pillarVideos.traffic}
+            startIndex={14}
           />
         </Section>
       </div>
@@ -1359,6 +1400,7 @@ export function StartPage() {
         label="DX Check"
         headline="500-Point Code + Media Quality Score That Actually Helps You Improve"
         sub="From F to SSSSS — an anime-inspired rank system that audits naming, structure, security, and quality. Get a ranked score and fix guidance in seconds."
+        imgIndex={8}
       />
 
       <div className="dx-home-section">
@@ -1405,6 +1447,7 @@ export function StartPage() {
           <VideoPlaceholderStrip
             title="Check Demo Reel"
             items={pillarVideos.check}
+            startIndex={18}
           />
         </Section>
       </div>
@@ -1413,6 +1456,7 @@ export function StartPage() {
         label="Media Engine"
         headline="Multimodal Generation, Workspace Discipline, and Token-Efficient Transport"
         sub="Generate images, video, audio, and 3D. Organize with Driven spec-first workflows. Ship faster with DX Serializer's 70–90% token savings on every tool call."
+        imgIndex={9}
       />
 
       <div className="dx-home-section">
@@ -1469,6 +1513,7 @@ export function StartPage() {
           <VideoPlaceholderStrip
             title="Media Workflow Demo Reel"
             items={pillarVideos.media}
+            startIndex={1}
           />
         </Section>
       </div>
