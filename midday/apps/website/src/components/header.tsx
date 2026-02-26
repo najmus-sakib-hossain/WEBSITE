@@ -12,17 +12,30 @@ interface HeaderProps {
   hideMenuItems?: boolean;
 }
 
+const productDropdown = [
+  { href: "/assistant", label: "Assistant", desc: "6 modes: Ask, Agent, Plan, Search, Study, Research" },
+  { href: "/forge", label: "Forge", desc: "Unlimited VCS for every media type" },
+  { href: "/media", label: "Media", desc: "5,000+ fonts · 219 icon sets · 1M+ icons" },
+  { href: "/check", label: "Check", desc: "500-point security & quality scoring" },
+  { href: "/security", label: "Security", desc: "Green/Yellow/Red traffic safety system" },
+];
+
+const docsNavigation = [
+  { href: "/docs/getting-started", label: "Getting Started" },
+  { href: "/docs/shortcuts", label: "Shortcuts" },
+  { href: "/docs/workflows", label: "Workflows" },
+  { href: "/docs/mcp-apps", label: "MCP Apps" },
+  { href: "/docs/offline", label: "Offline" },
+  { href: "/docs/api", label: "API" },
+];
+
 const navigation = [
-  { href: "#story-engine", label: "Story Engine" },
-  { href: "#what-is-dx", label: "What is DX" },
-  { href: "#deep-dive", label: "Deep Dive" },
-  { href: "#built-on-rust", label: "Built on Rust" },
-  { href: "#forge", label: "Forge" },
-  { href: "#traffic-security", label: "Security" },
-  { href: "#check", label: "Check" },
-  { href: "#token-revolution", label: "Token" },
-  { href: "#works-everywhere", label: "Coverage" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/", label: "Home", dropdown: null },
+  { href: "/product", label: "Product", dropdown: "product" },
+  { href: "/integrations", label: "Integrations", dropdown: null },
+  { href: "/pricing", label: "Pricing", dropdown: null },
+  { href: "/docs", label: "Docs", dropdown: "docs" },
+  { href: "/download", label: "Download", dropdown: null },
 ];
 
 export function Header({ transparent = false, hideMenuItems = false }: HeaderProps) {
@@ -37,6 +50,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
           transparent ? "bg-background/60 backdrop-blur-md" : "bg-background/80 backdrop-blur-md",
         )}
       >
+        {/* Logo */}
         <Link
           href="/"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -49,57 +63,107 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
           <span className="font-sans text-base text-foreground">dx</span>
         </Link>
 
+        {/* Desktop nav */}
         {!hideMenuItems ? (
-          <nav className="hidden xl:flex items-center gap-6">
-            {navigation.map((item) => {
-              if (item.href === "/docs") {
-                return (
-                  <div key={item.href} className="relative group">
-                    <Link
-                      href={item.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {item.label}
-                    </Link>
-                    <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-1/2 -translate-x-1/2 pt-4">
-                      <div className="w-56 rounded-md border border-border bg-background/95 backdrop-blur-md p-2 shadow-sm">
-                        {docsNavigation.map((docsItem) => (
-                          <Link
-                            key={docsItem.href}
-                            href={docsItem.href}
-                            className="block rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                          >
-                            {docsItem.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
+          <nav className="hidden xl:flex items-center gap-1">
+            {/* Home */}
+            <Link
+              href="/"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Home
+            </Link>
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+            {/* Product dropdown */}
+            <div className="relative group">
+              <button
+                type="button"
+                className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                Product
+                <svg className="w-3 h-3 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-0 pt-2 z-50">
+                <div className="w-72 border border-border bg-background/98 backdrop-blur-md p-2 shadow-md">
+                  {productDropdown.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex flex-col gap-0.5 rounded-sm px-3 py-2.5 hover:bg-muted/50 transition-colors"
+                    >
+                      <span className="text-sm text-foreground">{item.label}</span>
+                      <span className="text-xs text-muted-foreground">{item.desc}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Integrations */}
+            <Link
+              href="/integrations"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Integrations
+            </Link>
+
+            {/* Pricing */}
+            <Link
+              href="/pricing"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Pricing
+            </Link>
+
+            {/* Docs dropdown */}
+            <div className="relative group">
+              <Link
+                href="/docs"
+                className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                Docs
+                <svg className="w-3 h-3 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </Link>
+              <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
+                <div className="w-56 border border-border bg-background/98 backdrop-blur-md p-2 shadow-md">
+                  {docsNavigation.map((docsItem) => (
+                    <Link
+                      key={docsItem.href}
+                      href={docsItem.href}
+                      className="block rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    >
+                      {docsItem.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Download */}
+            <Link
+              href="/download"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Download
+            </Link>
           </nav>
         ) : null}
 
+        {/* Desktop CTAs */}
         <div className="hidden xl:flex items-center gap-2">
           <Button asChild variant="outline" className="h-9 px-4">
-            <a href="/docs">Read Docs</a>
+            <Link href="/docs">Read Docs</Link>
           </Button>
           <Button asChild className="btn-inverse h-9 px-4">
             <Link href="/download">Download DX ▶</Link>
           </Button>
         </div>
 
+        {/* Mobile hamburger */}
         <button
           type="button"
           className="xl:hidden p-2 text-muted-foreground hover:text-foreground"
@@ -110,6 +174,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
         </button>
       </div>
 
+      {/* Mobile menu */}
       {isOpen ? (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
@@ -117,42 +182,52 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
           exit={{ opacity: 0, y: -8 }}
           className="xl:hidden border-b border-border bg-background/95 backdrop-blur-md"
         >
-          <div className="px-4 py-4 flex flex-col gap-2">
-            {navigation.map((item) => (
-              <div key={item.href}>
+          <div className="px-4 py-4 flex flex-col gap-1">
+            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Home</Link>
+
+            {/* Product sub-links */}
+            <div>
+              <p className="text-xs text-muted-foreground px-2 pt-2 pb-1 uppercase tracking-wide">Product</p>
+              {productDropdown.map((item) => (
                 <Link
+                  key={item.href}
                   href={item.href}
-                  className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block"
+                  className="text-sm text-muted-foreground hover:text-foreground px-4 py-1.5 block"
                   onClick={() => setIsOpen(false)}
                 >
                   {item.label}
                 </Link>
-                {item.href === "/docs" ? (
-                  <div className="pl-5 pb-1 flex flex-col">
-                    {docsNavigation.map((docsItem) => (
-                      <Link
-                        key={docsItem.href}
-                        href={docsItem.href}
-                        className="text-xs text-muted-foreground hover:text-foreground py-1"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {docsItem.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
+              ))}
+            </div>
+
+            <Link href="/integrations" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Integrations</Link>
+            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Pricing</Link>
+
+            {/* Docs sub-links */}
+            <div>
+              <Link href="/docs" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Docs</Link>
+              <div className="pl-5 pb-1 flex flex-col">
+                {docsNavigation.map((docsItem) => (
+                  <Link
+                    key={docsItem.href}
+                    href={docsItem.href}
+                    className="text-xs text-muted-foreground hover:text-foreground py-1"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {docsItem.label}
+                  </Link>
+                ))}
               </div>
-            ))}
-            <div className="pt-2 grid grid-cols-2 gap-2">
+            </div>
+
+            <Link href="/download" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Download</Link>
+
+            <div className="pt-3 grid grid-cols-2 gap-2">
               <Button asChild variant="outline" className="h-9">
-                <a href="/docs" onClick={() => setIsOpen(false)}>
-                  Read Docs
-                </Link>
+                <Link href="/docs" onClick={() => setIsOpen(false)}>Read Docs</Link>
               </Button>
               <Button asChild className="btn-inverse h-9">
-                <Link href="/download" onClick={() => setIsOpen(false)}>
-                  Download DX ▶
-                </Link>
+                <Link href="/download" onClick={() => setIsOpen(false)}>Download DX ▶</Link>
               </Button>
             </div>
           </div>

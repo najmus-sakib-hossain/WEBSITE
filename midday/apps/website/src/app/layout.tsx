@@ -38,40 +38,41 @@ export const metadata: Metadata = {
     template: "%s | DX",
   },
   description:
-    "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
+    "DX is the universal development experience — native on every OS, 100+ AI providers, offline-first, Rust-powered, with Forge VCS, Traffic Security, Check scoring, and unified media generation.",
   openGraph: {
     title: "Enhance Your Development Experience | DX",
     description:
-      "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
+      "DX is the universal development experience — native on every OS, 100+ AI providers, offline-first, Rust-powered, with Forge VCS, Traffic Security, Check scoring, and unified media generation.",
     url: baseUrl,
     siteName: "DX",
     locale: "en_US",
     type: "website",
     images: [
       {
-        url: "https://cdn.midday.ai/opengraph-image-v1.jpg",
+        url: "https://cdn.dx.ai/opengraph-image-v1.jpg",
         width: 800,
         height: 600,
       },
       {
-        url: "https://cdn.midday.ai/opengraph-image-v1.jpg",
+        url: "https://cdn.dx.ai/opengraph-image-v1.jpg",
         width: 1800,
         height: 1600,
       },
     ],
   },
   twitter: {
+    card: "summary_large_image",
     title: "Enhance Your Development Experience | DX",
     description:
-      "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
+      "DX is the universal development experience — native on every OS, 100+ AI providers, offline-first, Rust-powered, with Forge VCS, Traffic Security, Check scoring, and unified media generation.",
     images: [
       {
-        url: "https://cdn.midday.ai/opengraph-image-v1.jpg",
+        url: "https://cdn.dx.ai/opengraph-image-v1.jpg",
         width: 800,
         height: 600,
       },
       {
-        url: "https://cdn.midday.ai/opengraph-image-v1.jpg",
+        url: "https://cdn.dx.ai/opengraph-image-v1.jpg",
         width: 1800,
         height: 1600,
       },
@@ -102,21 +103,22 @@ const jsonLd = {
   "@type": "Organization",
   name: "DX",
   url: "https://dx.ai",
-  logo: "https://cdn.midday.ai/logo.png",
+  logo: "https://cdn.dx.ai/logo.png",
   sameAs: [
     "https://x.com/dxai",
     "https://linkedin.com/company/dx-ai",
+    "https://github.com/dxai",
   ],
   description:
-    "DX is a unified development experience platform — a single, blazing-fast tool that connects AI generation, tool calling, media creation, and deep workflow integration under one roof.",
+    "DX is the universal development experience — native on every OS, 100+ AI providers, offline-first, Rust-powered, with Forge VCS, Traffic Security, Check scoring, and unified media generation.",
 };
 
 export default function Layout({ children }: { children: ReactElement }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://cdn.midday.ai" />
-        <link rel="dns-prefetch" href="https://cdn.midday.ai" />
+        <link rel="preconnect" href="https://cdn.dx.ai" />
+        <link rel="dns-prefetch" href="https://cdn.dx.ai" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -138,7 +140,7 @@ export default function Layout({ children }: { children: ReactElement }) {
             disableTransitionOnChange
           >
             <Header />
-            <main className="container mx-auto px-4 overflow-hidden md:overflow-visible">
+            <main className="max-w-[1400px] mx-auto px-4 overflow-hidden md:overflow-visible">
               {children}
             </main>
             <Footer />

@@ -1,3 +1,6 @@
+Please create a plan to update the midday/apps/website to our dx website and create a plan to show all these details to hype users but please make sure to use midday design system - the reason we are using midday fork is for their design system so please use their design system correclty just put our contents!!!
+
+```markdown
 So DX is not only one software. Its goal is to enhance the development experience of any user, so it technically is made to serve everyone, literally everyone. How DX works? DX has native apps for literally all operating systems you name it:
 - Mac OS
 - Windows
@@ -46,3 +49,4 @@ Good, now yeah for pro users we can do r2 bucket storage like you have suggested
 4. media: has support from all audio, video, image, 3D/AR/VR platforms. It can fetch from any providers like unsplash, pexels, pixabay for images, youtube, vimeo for videos, spotify, soundcloud for audio and sketchfab and thingiverse for 3D models. It can also fetch from any custom media providers that users can link to their dx account. It also has a built-in media editor that can do basic editing like cropping, resizing, trimming, and more advanced editing like color correction, audio mixing, and 3D model manipulation. It also has a media library where users can organize their media assets and easily access them from any of their projects. It has more than 5000+ fonts and 219+ icon-sets with more than 1 million icons. It also has a built-in font and icon manager where users can easily search, preview, and manage their fonts and icons. It also has support for custom fonts and icons that users can upload to their dx account and use in their projects. It also has a media version control system where users can track changes to their media assets and revert to previous versions if needed. It also has a media collaboration feature where users can share their media assets with their team members and collaborate on them in real-time.
 
 5. workspace(maintain a clean and organized workspace across any ide or place), serializer(most human readable, most token efficient, and fastest serializer in the world), i18n(convert any text to any language and sts, tts free unlimited), driven(maintain spec-driven ai workflow instead of vibe-coding ai slop), dcp(MCP, A2A, ACP but more token efficient, faster and better)
+```

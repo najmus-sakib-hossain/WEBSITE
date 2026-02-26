@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { baseUrl } from "@/app/sitemap";
 import { MCP } from "@/components/mcp";
 
-const title = "AI Integrations via MCP";
+const title = "DX MCP — Model Context Protocol Integrations";
 const description =
-  "Connect AI tools to your business data via Model Context Protocol (MCP). Use Cursor, Claude, ChatGPT, Raycast, or Zapier to query finances and automate workflows.";
+  "Connect AI tools to your development environment via MCP. Give Cursor, Claude, ChatGPT, Raycast, Copilot, and Zapier live access to your files, APIs, CLIs, and workflow tools through DX.";
 
 export const metadata: Metadata = {
   title,
@@ -15,7 +15,9 @@ export const metadata: Metadata = {
     "AI integration",
     "Claude MCP",
     "Cursor MCP",
-    "business automation",
+    "developer tool automation",
+    "DX MCP apps",
+    "AI workflow integration",
   ],
   openGraph: {
     title,

@@ -5,21 +5,22 @@ import { baseUrl } from "@/app/sitemap";
 import { competitors } from "@/data/competitors";
 
 const year = new Date().getFullYear();
-const title = `Compare DX to QuickBooks, Xero, FreshBooks & More (${year})`;
+const title = `Compare DX to VS Code, Cursor, JetBrains & More (${year})`;
 const description =
-  "Looking for QuickBooks, Xero, or FreshBooks alternatives? Compare DX to popular tools and see a faster, AI-native workflow model.";
+  "See how DX compares to other developer tools. Built on Rust, offline-first, with 100+ AI providers, 400+ connects, Forge VCS, and a unified media engine.";
 
 export const metadata: Metadata = {
   title,
   description,
   keywords: [
-    "quickbooks alternative",
-    "xero alternative",
-    "freshbooks alternative",
-    "accounting software comparison",
-    "business finance software",
-    "invoicing software for founders",
-    "small business tools",
+    "DX alternative",
+    "VS Code alternative",
+    "Cursor alternative",
+    "JetBrains alternative",
+    "developer tools comparison",
+    "AI developer environment",
+    "Rust IDE",
+    "offline AI coding",
   ],
   openGraph: {
     title,

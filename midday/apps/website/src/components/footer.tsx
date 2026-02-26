@@ -29,6 +29,9 @@ export function Footer() {
       title: "Product",
       links: [
         { href: "/assistant", label: "Assistant" },
+        { href: "/forge", label: "Forge" },
+        { href: "/media", label: "Media" },
+        { href: "/check", label: "Check" },
         { href: "/integrations", label: "Integrations" },
         { href: "/pricing", label: "Pricing" },
         { href: "/download", label: "Download" },

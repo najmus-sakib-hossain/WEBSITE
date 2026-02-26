@@ -53,7 +53,24 @@ enum Command {
     Push {
         #[arg(default_value = "origin")]
         remote: String,
+        /// Mirror targets: all-free | youtube | pinterest | soundcloud | sketchfab | github | gdrive | dropbox | mega | r2
+        #[arg(long)]
+        mirror: Option<String>,
+        /// Enable pro paid backends (R2, B2, GCS)
+        #[arg(long)]
+        pro: bool,
     },
+    /// Authenticate a mirror backend and save credentials
+    Auth {
+        /// Backend: youtube | pinterest | soundcloud | sketchfab | github | gdrive | dropbox | mega | r2 | all-free
+        backend: String,
+        /// Provide token directly (skip interactive prompt)
+        #[arg(long)]
+        token: Option<String>,
+    },
+    /// Create a demo project and print push instructions
+    #[command(name = "vibe-demo")]
+    VibeDemo,
     Pull {
         #[arg(default_value = "origin")]
         remote: String,
@@ -101,8 +118,10 @@ fn main() -> Result<()> {
             commit2,
         } => cli::diff::run(path.as_deref(), commit1.as_deref(), commit2.as_deref()),
         Command::Checkout { commit_id } => cli::checkout::run(&commit_id),
-        Command::Push { remote } => cli::push::run(&remote),
+        Command::Push { remote, .. } => cli::push::run(&remote),
         Command::Pull { remote } => cli::pull::run(&remote),
+        Command::Auth { backend, token } => cli::auth::run(&backend, token.as_deref()),
+        Command::VibeDemo => cli::vibe_demo::run(),
         Command::TrainDict {
             file_type,
             samples,

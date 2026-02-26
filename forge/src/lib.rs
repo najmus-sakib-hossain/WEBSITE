@@ -2,6 +2,7 @@ pub mod chunking;
 pub mod cli;
 pub mod core;
 pub mod db;
+pub mod mirror;
 pub mod store;
 pub mod transport;
 pub mod util;

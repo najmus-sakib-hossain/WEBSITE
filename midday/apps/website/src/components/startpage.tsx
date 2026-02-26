@@ -1,7 +1,18 @@
 "use client";
 
 import { useGSAP } from "@gsap/react";
+import Link from "next/link";
+import { Badge } from "@midday/ui/badge";
 import { Button } from "@midday/ui/button";
+import { Card, CardContent } from "@midday/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@midday/ui/table";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion } from "motion/react";
@@ -115,6 +126,47 @@ const comparisons = [
     "Desktop + mobile + ChromeOS + companion OS + extensions",
     "1–2 platforms, limited plugins",
   ],
+];
+
+const generationCategories = [
+  { category: "Text & Code", capability: "Code generation, completion, refactor, and review" },
+  { category: "Images", capability: "Image generation, editing, and token-efficient image workflows" },
+  { category: "Video", capability: "Video generation and processing pipelines" },
+  { category: "Audio & Music", capability: "Sound design, composition, and voice synthesis" },
+  { category: "3D / AR / VR", capability: "3D/AR/VR asset and scene generation" },
+  { category: "Documents & PDFs", capability: "PDFs, specs, reports, and document generation" },
+  { category: "Charts & Data", capability: "Visualizations, dashboards, and analysis" },
+  { category: "Tool Calling", capability: "Full support for MCP, ACP, and A2A protocols (DX DCP-compatible)" },
+  { category: "Conversation", capability: "Real-time voice interaction and STT/TTS" },
+];
+
+const testimonials = [
+  {
+    quote: "DX cut our token costs by 60% on day one. The RLM compression alone was worth the switch.",
+    by: "Lena M., Staff Engineer @ Arcforge",
+  },
+  {
+    quote: "Finally an AI tool that works offline. Deployed DX on a remote rig with no internet — full capability.",
+    by: "Riku S., DevOps Lead @ Shellgrid",
+  },
+  {
+    quote: "Forge is underrated. We now version all design exports alongside code with zero extra tooling.",
+    by: "Priya K., Senior Developer @ Byteplane",
+  },
+];
+
+const comparisonRows: string[][] = [
+  ["Core Language", "Rust + GPUI", "TypeScript / Node.js", "Java / Kotlin"],
+  ["Startup Time", "12ms", "~1.2s", "~3.5s"],
+  ["RAM Baseline", "45MB", "200–800MB", "400MB–2GB"],
+  ["AI Providers", "100+ + local models", "1–5 providers", "1–2 providers"],
+  ["Offline AI", "Unlimited free local models", "No", "No"],
+  ["Token Efficiency", "RLM + Serializer 30–90% savings", "None", "None"],
+  ["Media Generation", "Text/image/video/3D/audio", "Code only", "Code only"],
+  ["Traffic Security", "Green/Yellow/Red system", "Manual review", "Manual review"],
+  ["VCS Coverage", "Code + all media types (Forge)", "Code only", "Code only"],
+  ["Platforms", "9+ native + browser + extensions", "Desktop + browser ext", "Desktop only"],
+  ["Connectors", "400+ connects", "Limited extensions", "Limited plugins"],
 ];
 
 const stats = [
@@ -550,12 +602,11 @@ export function StartPage() {
               "100+ LLM providers + offline local models",
               "30–90% token savings on large operations",
             ].map((item) => (
-              <div
-                key={item}
-                className="border border-border bg-background p-4 text-sm text-foreground"
-              >
-                {item}
-              </div>
+              <Card key={item}>
+                <CardContent className="p-4 text-sm text-foreground">
+                  {item}
+                </CardContent>
+              </Card>
             ))}
           </motion.div>
 
@@ -567,16 +618,18 @@ export function StartPage() {
             transition={{ duration: 0.4 }}
           >
             {stats.map((item) => (
-              <div key={item.label} className="border border-border p-4 bg-background">
-                <p
-                  className="text-2xl sm:text-3xl text-foreground dx-counter"
-                  data-value={item.value}
-                  data-suffix={item.suffix}
-                >
-                  0{item.suffix}
-                </p>
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{item.label}</p>
-              </div>
+              <Card key={item.label}>
+                <CardContent className="p-4">
+                  <p
+                    className="text-2xl sm:text-3xl text-foreground dx-counter"
+                    data-value={item.value}
+                    data-suffix={item.suffix}
+                  >
+                    0{item.suffix}
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{item.label}</p>
+                </CardContent>
+              </Card>
             ))}
           </motion.div>
         </div>
@@ -611,11 +664,11 @@ export function StartPage() {
             ))}
           </div>
 
-          <div className="mt-6 border border-border p-5">
-            <p className="text-sm text-muted-foreground">
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
               This is where DX changes the game: the same workflow can move from local, offline generation to cloud orchestration without rebuilding the process.
-            </p>
-          </div>
+            </CardContent>
+          </Card>
         </Section>
       </div>
 
@@ -626,36 +679,46 @@ export function StartPage() {
           subtitle="DX is a unified development experience platform built to serve everyone — developers, creators, and teams. There are no arbitrary category boundaries — everything is one connected system."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm sm:text-base">
-            <div className="border border-border p-5 text-muted-foreground">
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
               AI generation, tool calling, media creation, and workflow
               integration are not separate products. They are facets of one
               cohesive experience.
-            </div>
-            <div className="border border-border p-5 text-muted-foreground">
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
               You can generate code, analyze data, run deep research, and
               produce media with one consistent workflow, one context, and one
               mental model.
-            </div>
-            <div className="border border-border p-5 text-muted-foreground">
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
               Manage everything from the browser with a remote web console —
               then keep the same workflow on native apps across desktop, mobile,
               and companion devices.
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Modes</p>
-              <p className="mt-2 text-foreground">
-                Ask, Agent, Plan, Search, Study, Research.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Extensions</p>
-              <p className="mt-2 text-foreground">
-                Browsers, IDEs, Figma, Photoshop, DaVinci Resolve — and more.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Modes</p>
+                <p className="mt-2 text-foreground">
+                  Ask, Agent, Plan, Search, Study, Research.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Extensions</p>
+                <p className="mt-2 text-foreground">
+                  Browsers, IDEs, Figma, Photoshop, DaVinci Resolve — and more.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </Section>
       </div>
@@ -691,49 +754,57 @@ export function StartPage() {
           subtitle="Move from landing-page overview to operational proof in one click."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Product Workflows</p>
-              <p className="mt-2 text-foreground">
-                Explore ask/agent/research execution patterns and connected context flows.
-              </p>
-              <div className="mt-4">
-                <Button asChild variant="outline" className="h-10 px-4">
-                  <a href="/assistant">Open Assistant</a>
-                </Button>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Product Workflows</p>
+                <p className="mt-2 text-foreground">
+                  Explore ask/agent/research execution patterns and connected context flows.
+                </p>
+                <div className="mt-4">
+                  <Button asChild variant="outline" className="h-10 px-4">
+                    <a href="/assistant">Open Assistant</a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Integration Surface</p>
-              <p className="mt-2 text-foreground">
-                Validate MCP routing, provider coverage, and tool-call interfaces across clients.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="h-10 px-4">
-                  <a href="/mcp">Open MCP</a>
-                </Button>
-                <Button asChild variant="outline" className="h-10 px-4">
-                  <a href="/integrations">Open Integrations</a>
-                </Button>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Integration Surface</p>
+                <p className="mt-2 text-foreground">
+                  Validate MCP routing, provider coverage, and tool-call interfaces across clients.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" className="h-10 px-4">
+                    <a href="/mcp">Open MCP</a>
+                  </Button>
+                  <Button asChild variant="outline" className="h-10 px-4">
+                    <a href="/integrations">Open Integrations</a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Docs + API Readiness</p>
-              <p className="mt-2 text-foreground">
-                Go deeper into setup, architecture notes, and workflow documentation.
-              </p>
-              <div className="mt-4">
-                <Button asChild variant="outline" className="h-10 px-4">
-                  <a href="/docs">Open Docs</a>
-                </Button>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Docs + API Readiness</p>
+                <p className="mt-2 text-foreground">
+                  Go deeper into setup, architecture notes, and workflow documentation.
+                </p>
+                <div className="mt-4">
+                  <Button asChild variant="outline" className="h-10 px-4">
+                    <a href="/docs">Open Docs</a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
-            DX is built for execution at scale: local-first workflows, cloud orchestration, and production-grade tool connectivity without context loss.
-          </div>
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              DX is built for execution at scale: local-first workflows, cloud orchestration, and production-grade tool connectivity without context loss.
+            </CardContent>
+          </Card>
         </Section>
       </div>
 
@@ -744,24 +815,30 @@ export function StartPage() {
           subtitle="DX is engineered in Rust for performance, efficiency, and native-grade responsiveness across platforms."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Speed</p>
-              <p className="mt-2 text-foreground">
-                Near-native performance on every operation.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Efficiency</p>
-              <p className="mt-2 text-foreground">
-                Designed to save RAM and stay responsive under heavy workloads.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Desktop UI</p>
-              <p className="mt-2 text-foreground">
-                GPUI-powered rendering for a fast, responsive native experience.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Speed</p>
+                <p className="mt-2 text-foreground">
+                  Near-native performance on every operation.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Efficiency</p>
+                <p className="mt-2 text-foreground">
+                  Designed to save RAM and stay responsive under heavy workloads.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Desktop UI</p>
+                <p className="mt-2 text-foreground">
+                  GPUI-powered rendering for a fast, responsive native experience.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </Section>
       </div>
@@ -773,28 +850,22 @@ export function StartPage() {
           subtitle="If you can name it, DX can generate it."
         >
           <div className="overflow-x-auto border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40">
-                <tr>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Category
-                  </th>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Capabilities
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Capabilities</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {generationCategories.map((row) => (
-                  <tr key={row.category} className="border-t border-border">
-                    <td className="p-3 text-foreground">{row.category}</td>
-                    <td className="p-3 text-muted-foreground">
-                      {row.capability}
-                    </td>
-                  </tr>
+                  <TableRow key={row.category}>
+                    <TableCell className="text-foreground">{row.category}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.capability}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Section>
       </div>
@@ -806,33 +877,41 @@ export function StartPage() {
           subtitle="RLM + DX Serializer + tokenizers + micro-optimizations across the full pipeline."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-foreground">RLM</p>
-              <p className="mt-2 text-muted-foreground text-sm">
-                Saves 80–90% tokens on large file operations by minimizing
-                reference length in context flows.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-foreground">DX Serializer</p>
-              <p className="mt-2 text-muted-foreground text-sm">
-                Saves 70–90% tokens on tool calls by replacing bloated JSON
-                transport.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-foreground">Tokenizers</p>
-              <p className="mt-2 text-muted-foreground text-sm">
-                Image tokenization + compact encodings reduce payload size and
-                keep multimodal workflows affordable.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-foreground">RLM</p>
+                <p className="mt-2 text-muted-foreground text-sm">
+                  Saves 80–90% tokens on large file operations by minimizing
+                  reference length in context flows.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-foreground">DX Serializer</p>
+                <p className="mt-2 text-muted-foreground text-sm">
+                  Saves 70–90% tokens on tool calls by replacing bloated JSON
+                  transport.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-foreground">Tokenizers</p>
+                <p className="mt-2 text-muted-foreground text-sm">
+                  Image tokenization + compact encodings reduce payload size and
+                  keep multimodal workflows affordable.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
-            Token savings compound across the entire workflow, which makes
-            deeper multi-step agents viable — online or offline.
-          </div>
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              Token savings compound across the entire workflow, which makes
+              deeper multi-step agents viable — online or offline.
+            </CardContent>
+          </Card>
         </Section>
       </div>
 
@@ -843,30 +922,24 @@ export function StartPage() {
           subtitle="Native apps and extensions across the full development and creative workflow."
         >
           <div className="overflow-x-auto border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40">
-                <tr>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Platform
-                  </th>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    App Type
-                  </th>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Platform</TableHead>
+                  <TableHead>App Type</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {platforms.map(([platform, appType, status]) => (
-                  <tr key={platform} className="border-t border-border">
-                    <td className="p-3 text-foreground">{platform}</td>
-                    <td className="p-3 text-muted-foreground">{appType}</td>
-                    <td className="p-3 text-foreground">{status}</td>
-                  </tr>
+                  <TableRow key={platform}>
+                    <TableCell className="text-foreground">{platform}</TableCell>
+                    <TableCell className="text-muted-foreground">{appType}</TableCell>
+                    <TableCell className="text-foreground">{status}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Section>
       </div>
@@ -878,44 +951,54 @@ export function StartPage() {
           subtitle="Own your workflow. No vendor lock-in."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-border p-5 text-muted-foreground">
-              <p className="text-foreground">Online</p>
-              <p className="mt-2 text-sm">
-                Connect to 100+ LLM providers, open-source models, and
-                self-hosted endpoints.
-              </p>
-            </div>
-            <div className="border border-border p-5 text-muted-foreground">
-              <p className="text-foreground">Offline</p>
-              <p className="mt-2 text-sm">
-                Run capable local models without internet and without token
-                limits.
-              </p>
-            </div>
-            <div className="border border-border p-5 text-muted-foreground">
-              <p className="text-foreground">Hybrid</p>
-              <p className="mt-2 text-sm">
-                Switch seamlessly between cloud and local models based on
-                runtime conditions.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
+                <p className="text-foreground">Online</p>
+                <p className="mt-2 text-sm">
+                  Connect to 100+ LLM providers, open-source models, and
+                  self-hosted endpoints.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
+                <p className="text-foreground">Offline</p>
+                <p className="mt-2 text-sm">
+                  Run capable local models without internet and without token
+                  limits.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 text-muted-foreground">
+                <p className="text-foreground">Hybrid</p>
+                <p className="mt-2 text-sm">
+                  Switch seamlessly between cloud and local models based on
+                  runtime conditions.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Integrations</p>
-              <p className="mt-2 text-foreground">
-                400+ connects. Link Cloud CLI skills, plugins, and communication
-                apps like WhatsApp, Telegram, and Discord.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Forge</p>
-              <p className="mt-2 text-foreground">
-                Version control for code and viral-ready media — with
-                bring-your-own storage connectors.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Integrations</p>
+                <p className="mt-2 text-foreground">
+                  400+ connects. Link Cloud CLI skills, plugins, and communication
+                  apps like WhatsApp, Telegram, and Discord.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Forge</p>
+                <p className="mt-2 text-foreground">
+                  Version control for code and viral-ready media — with
+                  bring-your-own storage connectors.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </Section>
       </div>
@@ -927,84 +1010,86 @@ export function StartPage() {
           subtitle="Technical differences that matter in production workflows."
         >
           <div className="overflow-x-auto border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40">
-                <tr>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Feature
-                  </th>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    DX
-                  </th>
-                  <th className="text-left p-3 text-foreground font-medium">
-                    Competitors
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Feature</TableHead>
+                  <TableHead>DX</TableHead>
+                  <TableHead>Competitors</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {comparisons.map(([feature, dx, competitors]) => (
-                  <tr key={feature} className="border-t border-border">
-                    <td className="p-3 text-foreground">{feature}</td>
-                    <td className="p-3 text-foreground">{dx}</td>
-                    <td className="p-3 text-muted-foreground">{competitors}</td>
-                  </tr>
+                  <TableRow key={feature}>
+                    <TableCell className="text-foreground">{feature}</TableCell>
+                    <TableCell className="text-foreground">{dx}</TableCell>
+                    <TableCell className="text-muted-foreground">{competitors}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">
-                Forge Storage Strategy
-              </p>
-              <p className="mt-2 text-foreground">
-                Store media to your own platforms: YouTube (unlisted/draft) for
-                video, Pinterest for images, SoundCloud/Spotify-like for audio,
-                Sketchfab-like for 3D, and Git providers for code/docs.
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Also supports R2 buckets (pro fallback) and common cloud drives.
-                Availability depends on provider policies.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Traffic Security</p>
-              <p className="mt-2 text-foreground">
-                Green / Yellow / Red safety levels. DX auto-executes harmless
-                work, warns on sensitive actions, and adds backups on risky
-                operations.
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Sensitive data is hashed/redacted before third-party calls;
-                optional firewall/VPN/IDS-style protections are part of the DX
-                security layer.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Check Score</p>
-              <p className="mt-2 text-foreground">
-                Anime-style 500 score rank system (F → SSSSS) based on naming,
-                structure, and issues — with suggestions to improve security and
-                quality.
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Includes vulnerability scanning plus code/media linting and
-                audit reports.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Media + Workspace</p>
-              <p className="mt-2 text-foreground">
-                Fetch, organize, and version media across platforms — plus a
-                clean workspace across IDEs, token-efficient serialization, and
-                built-in i18n (translate + STT/TTS).
-              </p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Driven workflows (spec-first) + DCP for faster, more
-                token-efficient agent execution.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">
+                  Forge Storage Strategy
+                </p>
+                <p className="mt-2 text-foreground">
+                  Store media to your own platforms: YouTube (unlisted/draft) for
+                  video, Pinterest for images, SoundCloud/Spotify-like for audio,
+                  Sketchfab-like for 3D, and Git providers for code/docs.
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Also supports R2 buckets (pro fallback) and common cloud drives.
+                  Availability depends on provider policies.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Traffic Security</p>
+                <p className="mt-2 text-foreground">
+                  Green / Yellow / Red safety levels. DX auto-executes harmless
+                  work, warns on sensitive actions, and adds backups on risky
+                  operations.
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Sensitive data is hashed/redacted before third-party calls;
+                  optional firewall/VPN/IDS-style protections are part of the DX
+                  security layer.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Check Score</p>
+                <p className="mt-2 text-foreground">
+                  Anime-style 500 score rank system (F → SSSSS) based on naming,
+                  structure, and issues — with suggestions to improve security and
+                  quality.
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Includes vulnerability scanning plus code/media linting and
+                  audit reports.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Media + Workspace</p>
+                <p className="mt-2 text-foreground">
+                  Fetch, organize, and version media across platforms — plus a
+                  clean workspace across IDEs, token-efficient serialization, and
+                  built-in i18n (translate + STT/TTS).
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Driven workflows (spec-first) + DCP for faster, more
+                  token-efficient agent execution.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </Section>
       </div>
@@ -1016,27 +1101,29 @@ export function StartPage() {
           subtitle="DX Forge routes output to user-owned platforms so teams get resilient storage + distribution-ready workflows."
         >
           <div className="overflow-x-auto border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40">
-                <tr>
-                  <th className="text-left p-3 text-foreground font-medium">Asset Type</th>
-                  <th className="text-left p-3 text-foreground font-medium">Primary Storage Route</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Asset Type</TableHead>
+                  <TableHead>Primary Storage Route</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {forgeRoutes.map(([type, route]) => (
-                  <tr key={type} className="border-t border-border">
-                    <td className="p-3 text-foreground">{type}</td>
-                    <td className="p-3 text-muted-foreground">{route}</td>
-                  </tr>
+                  <TableRow key={type}>
+                    <TableCell className="text-foreground">{type}</TableCell>
+                    <TableCell className="text-muted-foreground">{route}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
-          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
-            Pro fallback storage remains available (R2 + cloud drives like Google Drive/Dropbox) while default routes prioritize user-owned channels.
-          </div>
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              Pro fallback storage remains available (R2 + cloud drives like Google Drive/Dropbox) while default routes prioritize user-owned channels.
+            </CardContent>
+          </Card>
 
           <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {pillarPlaybooks.forge.map((step, index) => (
@@ -1069,17 +1156,21 @@ export function StartPage() {
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {trafficLevels.map((item) => (
-              <div key={item.level} className="border border-border p-5">
-                <p className="text-sm text-muted-foreground">{item.level}</p>
-                <p className="mt-2 text-foreground">{item.behavior}</p>
-                <p className="mt-3 text-sm text-muted-foreground">{item.detail}</p>
-              </div>
+              <Card key={item.level}>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground">{item.level}</p>
+                  <p className="mt-2 text-foreground">{item.behavior}</p>
+                  <p className="mt-3 text-sm text-muted-foreground">{item.detail}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          <div className="mt-6 border border-border p-5 text-sm text-muted-foreground">
-            Sensitive fields are protected before third-party calls, and high-risk actions receive additional safeguards and monitoring.
-          </div>
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              Sensitive fields are protected before third-party calls, and high-risk actions receive additional safeguards and monitoring.
+            </CardContent>
+          </Card>
 
           <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {pillarPlaybooks.traffic.map((step, index) => (
@@ -1110,27 +1201,23 @@ export function StartPage() {
           title="Check: 500-Point Rank System"
           subtitle="DX Check audits naming, structure, quality, and security to produce a ranked score with direct fix guidance."
         >
-          <div className="border border-border p-5">
-            <p className="text-sm text-muted-foreground">Rank Ladder</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {checkRanks.map((rank) => (
-                <span key={rank} className="px-2.5 py-1 border border-border text-sm text-foreground">
-                  {rank}
-                </span>
-              ))}
-            </div>
-          </div>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground">Rank Ladder</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {checkRanks.map((rank) => (
+                  <Badge key={rank} variant="outline">
+                    {rank}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-border p-5 text-sm text-muted-foreground">
-              Security and vulnerability scanning
-            </div>
-            <div className="border border-border p-5 text-sm text-muted-foreground">
-              Code + media linting for quality consistency
-            </div>
-            <div className="border border-border p-5 text-sm text-muted-foreground">
-              Actionable report with prioritized improvements
-            </div>
+            <Card><CardContent className="p-5 text-sm text-muted-foreground">Security and vulnerability scanning</CardContent></Card>
+            <Card><CardContent className="p-5 text-sm text-muted-foreground">Code + media linting for quality consistency</CardContent></Card>
+            <Card><CardContent className="p-5 text-sm text-muted-foreground">Actionable report with prioritized improvements</CardContent></Card>
           </div>
 
           <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1164,25 +1251,31 @@ export function StartPage() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mediaPillars.map((pillar) => (
-              <div key={pillar} className="border border-border p-5 text-sm text-muted-foreground">
-                {pillar}
-              </div>
+              <Card key={pillar}>
+                <CardContent className="p-5 text-sm text-muted-foreground">
+                  {pillar}
+                </CardContent>
+              </Card>
             ))}
           </div>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Workspace + Driven</p>
-              <p className="mt-2 text-foreground">
-                Keep execution spec-driven instead of chaotic vibe-coding flows, with cleaner context across IDEs and tools.
-              </p>
-            </div>
-            <div className="border border-border p-5">
-              <p className="text-sm text-muted-foreground">Serializer + i18n + DCP</p>
-              <p className="mt-2 text-foreground">
-                Human-readable, token-efficient transport with global language workflows and faster MCP/ACP/A2A-compatible execution.
-              </p>
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Workspace + Driven</p>
+                <p className="mt-2 text-foreground">
+                  Keep execution spec-driven instead of chaotic vibe-coding flows, with cleaner context across IDEs and tools.
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">Serializer + i18n + DCP</p>
+                <p className="mt-2 text-foreground">
+                  Human-readable, token-efficient transport with global language workflows and faster MCP/ACP/A2A-compatible execution.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="dx-playbook-grid mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1235,13 +1328,18 @@ export function StartPage() {
                   "Enterprise controls, private deployment options, and support SLAs.",
               },
             ].map((plan) => (
-              <div key={plan.title} className="border border-border p-5">
-                <p className="text-sm text-muted-foreground">{plan.title}</p>
-                <p className="mt-2 text-2xl text-foreground">{plan.price}</p>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {plan.details}
-                </p>
-              </div>
+              <Card
+                key={plan.title}
+                className={plan.title === "Pro" ? "ring-2 ring-primary" : ""}
+              >
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground">{plan.title}</p>
+                  <p className="mt-2 text-2xl text-foreground">{plan.price}</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {plan.details}
+                  </p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </Section>
@@ -1249,7 +1347,8 @@ export function StartPage() {
 
       <section className="dx-reveal pt-14">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
-          <div className="border border-border p-5 sm:p-7 dx-bench-wrap">
+          <Card className="dx-bench-wrap">
+            <CardContent className="p-5 sm:p-7">
             <h2 className="font-serif text-3xl text-foreground">Built With Rust. Built To Fly.</h2>
             <p className="mt-3 text-muted-foreground max-w-3xl">
               DX is engineered in Rust for memory safety and high throughput. It keeps startup instant, UI responsive,
@@ -1275,7 +1374,8 @@ export function StartPage() {
                 ))}
               </div>
 
-              <div className="border border-border p-4">
+              <Card>
+                <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Deep Dive</p>
                 <p className="mt-2 text-foreground">
                   Zero garbage collection pauses. Low memory pressure. Native execution path for editor and assistant workflows.
@@ -1283,59 +1383,68 @@ export function StartPage() {
                 <p className="mt-4 text-sm text-muted-foreground">
                   12ms startup · 45MB RAM baseline · 60fps UI under heavy file and tool workloads.
                 </p>
-              </div>
+              </CardContent>
+            </Card>
             </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       <section className="dx-reveal pt-14">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
-          <div className="border border-border p-5 sm:p-7">
-            <h2 className="font-serif text-3xl text-foreground">Developer Testimonials</h2>
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {testimonials.map((item) => (
-                <div key={item.quote} className="border border-border p-4">
-                  <p className="text-foreground">“{item.quote}”</p>
-                  <p className="mt-3 text-xs text-muted-foreground">— {item.by}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="dx-reveal pt-14">
-        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
-          <div className="border border-border p-5 sm:p-7 overflow-x-auto">
-            <h2 className="font-serif text-3xl text-foreground">Comparison Table</h2>
-            <table className="w-full min-w-[680px] mt-5 text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2">Feature</th>
-                  <th className="text-left py-2">DX</th>
-                  <th className="text-left py-2">VS Code</th>
-                  <th className="text-left py-2">JetBrains</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((row) => (
-                  <tr key={row[0]} className="border-b border-border">
-                    <td className="py-2 text-foreground">{row[0]}</td>
-                    <td className="py-2 text-foreground">{row[1]}</td>
-                    <td className="py-2 text-muted-foreground">{row[2]}</td>
-                    <td className="py-2 text-muted-foreground">{row[3]}</td>
-                  </tr>
+          <Card>
+            <CardContent className="p-5 sm:p-7">
+              <h2 className="font-serif text-3xl text-foreground">Developer Testimonials</h2>
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                {testimonials.map((item) => (
+                  <Card key={item.quote}>
+                    <CardContent className="p-4">
+                      <p className="text-foreground">“{item.quote}”</p>
+                      <p className="mt-3 text-xs text-muted-foreground">— {item.by}</p>
+                    </CardContent>
+                  </Card>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       <section className="dx-reveal pt-14">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
-          <div className="border border-border p-6 sm:p-10 text-center">
+          <Card className="overflow-x-auto">
+            <CardContent className="p-5 sm:p-7">
+            <h2 className="font-serif text-3xl text-foreground">Comparison Table</h2>
+            <Table className="mt-5 min-w-[680px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Feature</TableHead>
+                  <TableHead>DX</TableHead>
+                  <TableHead>VS Code</TableHead>
+                  <TableHead>JetBrains</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {comparisonRows.map((row) => (
+                  <TableRow key={row[0]}>
+                    <TableCell className="text-foreground">{row[0]}</TableCell>
+                    <TableCell className="text-foreground">{row[1]}</TableCell>
+                    <TableCell className="text-muted-foreground">{row[2]}</TableCell>
+                    <TableCell className="text-muted-foreground">{row[3]}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="dx-reveal pt-14">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+          <Card className="text-center">
+            <CardContent className="p-6 sm:p-10">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Interactive Demo</p>
             <h3 className="mt-3 font-serif text-3xl sm:text-4xl text-foreground">Try the DX workflow playground.</h3>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
@@ -1349,7 +1458,8 @@ export function StartPage() {
                 <Link href="/integrations">Explore Integrations</Link>
               </Button>
             </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
