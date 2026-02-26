@@ -30,10 +30,10 @@ export function PricingSection() {
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="font-sans text-2xl text-foreground">
-                    $29
+                    Free
                   </span>
                   <span className="font-sans text-sm text-muted-foreground">
-                    /month
+                    forever
                   </span>
                 </div>
               </div>
@@ -123,10 +123,10 @@ export function PricingSection() {
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="font-sans text-2xl text-foreground">
-                    $49
+                    Free
                   </span>
                   <span className="font-sans text-sm text-muted-foreground">
-                    /month
+                    forever
                   </span>
                 </div>
               </div>
@@ -199,10 +199,10 @@ export function PricingSection() {
 
         <div className="text-center mt-16 space-y-1">
           <p className="font-sans text-xs text-muted-foreground">
-            14-day free trial · Cancel anytime
+            Free forever · No credit card required
           </p>
           <p className="font-sans text-xs text-muted-foreground">
-            Prices shown in USD. Local taxes may apply.
+            All features included at no cost
           </p>
         </div>
       </div>

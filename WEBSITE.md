@@ -1,3 +1,20 @@
+Awesome now please do these:
+1. there is transparent popovers and selection in the header so please use our design system background colors correctly
+2. We are dx - just "dx" not dxlabs or other so please rename every typos from our website
+3. in the landing page there is still pricing sections so please make it "free foreever"
+4. At here please at the hero donwload os apps please use put a current command to downlaod dx
+
+For platforms icons please use solar icon pack!!! and do these:
+1. Please show all the images in our website with more contrast, brightness, and sharpness
+2. Update the pricing to be free forever!!!
+3. In the footer currently only dx but please in big text size please put:
+- Enhanced
+- Development 
+- Experience 
+in a loop one by one text!!!
+
+All the image in this website Cis in lowers quility so please make a web search about how to show images in nextjs in higher quility and do that for all images in this website and make things like the hero descriptions is not in the center so please put them in the center correctly!!! and on the hero top under the description please show all os icons like macos, linux, windows, android, ios, tv, watch, tablet, chrome-os, browser-extension, ide-extension and all os  in a box with maintaining midday design system - later we will implement click to download app but for now just show them
+
 Please create a plan to update the midday/apps/website to our dx website and create a plan to show all these details to hype users but please make sure to use midday design system - the reason we are using midday fork is for their design system so please use their design system correclty just put our contents!!!
 
 ```markdown

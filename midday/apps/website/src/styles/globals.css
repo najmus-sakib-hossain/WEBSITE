@@ -218,3 +218,16 @@ pre div {
     animation: none;
   }
 }
+
+/* Enhanced image quality - more contrast, brightness, and sharpness */
+img {
+  filter: contrast(1.15) brightness(1.1) saturate(1.1);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Ensure Next.js Image components also get enhanced */
+img[loading],
+img[decoding] {
+  filter: contrast(1.15) brightness(1.1) saturate(1.1);
+}

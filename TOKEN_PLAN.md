@@ -1,3 +1,6 @@
+Please give me plan to create dx rust with all best crates to save 90% tokens and beat all current compettitors and give me plan to save all tokens possible!!!
+
+```markdown
 Good now I am asking for all these token-safe techniques because I am creating a Rust software called DX and I want to beat all of the other Node Chase competitors. I already added RLM technique in my Rust software, now I am looking for other ways to save tokens and beat everything like Codex, Cloud CLI, Cursor and things like that. Our key advantage is Rust as Rust is more fast and better for this type of task than Node Chase. As RLM is a fundamental, fundamentally it is a slow task. So using Rust even made the slowest techniques to be faster in a way so that it really saves tokens in the right way and don't waste a lot of tokens.  
   
 So use this technique and save tokens everywhere. Give me the latest, groundbreaking, out-of-the-box, game-changing techniques to save tokens on images, tool calling, and all other places that recently got published so that we can use those techniques to be viral with the motto that our DX software saves up to 90% tokens while your Codex, Cursor, and Cloud CLI waste SRAM slower and also waste your money and tokens. People love to save money, so that's why our DX Rust software will go viral.  
@@ -331,3 +334,4 @@ That’s very hard for competitors to argue with, and it’s exactly where a Rus
 ---
 
 If you want, I can turn this into a **concrete DX engineering backlog** (modules, data structures, default policies, and a benchmark suite that produces screenshots/graphs for your launch).
+```

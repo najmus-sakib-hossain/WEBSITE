@@ -22,6 +22,7 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { DxAiFace } from "./dx-ai-face";
 import { DxVideoShowcases } from "./dx-video-showcases";
+import { PlatformIcons } from "./platform-icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -516,7 +517,9 @@ function VideoPlaceholderStrip({
                 alt={item}
                 fill
                 className="object-cover"
-                sizes="360px"
+                sizes="(max-width: 640px) 260px, (max-width: 768px) 320px, 360px"
+                quality={95}
+                priority={itemIndex < 3}
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <div className="w-12 h-12 rounded-full border-2 border-white/80 flex items-center justify-center">
@@ -560,7 +563,8 @@ function FeatureHeroBanner({
           fill
           className="object-cover"
           sizes="100vw"
-          priority={false}
+          quality={95}
+          priority={imgIndex === 0}
         />
         <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
@@ -715,20 +719,24 @@ export function StartPage() {
       <section className="pt-32 sm:pt-36">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
           <div className="dx-reveal text-center">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching February 24, 2026</p>
-            <div className="mt-6">
-              <DxAiFace />
+            {/* <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching February 24, 2026</p> */}
+            <div className="flex justify-center">
+              <DxAiFace size={280} interactive={true} />
             </div>
-            <p className="mt-6 text-base sm:text-lg text-muted-foreground">Hi. I&apos;m DX.</p>
+            <p className="mt-8 text-base sm:text-lg text-muted-foreground">Hi. I&apos;m DX.</p>
             <h1 className="mt-3 font-serif text-4xl sm:text-5xl lg:text-6xl leading-tight text-foreground">
               The Developer Experience You Actually Deserve.
             </h1>
-            <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-3xl">
+            <p className="mt-6 text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto">
               DX is not just another AI app. It is a unified development
               experience platform that connects code, research, orchestration,
               and media execution in one runtime — built to help teams ship
               faster with less tool friction.
             </p>
+            
+            {/* Platform Icons */}
+            <PlatformIcons />
+            
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Button asChild className="btn-inverse h-11 px-6">
                 <Link href="/download">Get Started Free</Link>
@@ -840,6 +848,7 @@ export function StartPage() {
                     fill
                     className="object-cover"
                     sizes="400px"
+                    quality={95}
                   />
                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                     <span className="text-white text-2xl">▶</span>
@@ -1573,32 +1582,32 @@ export function StartPage() {
         <Section
           id="pricing"
           title="Pricing"
-          subtitle="Generous free access. Transparent paid tiers."
+          subtitle="Free forever. No credit card required."
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               {
                 title: "Free",
-                price: "$0",
+                price: "Free",
                 details:
-                  "Start with core generation, local workflows, and integrations.",
+                  "All features included. Unlimited usage. No hidden costs.",
               },
               {
-                title: "Pro",
-                price: "$19/mo",
+                title: "Forever",
+                price: "Free",
                 details:
-                  "Higher limits, advanced orchestration, and team-ready workflows.",
+                  "Core generation, local workflows, integrations, and more.",
               },
               {
-                title: "Scale",
-                price: "Custom",
+                title: "Open Source",
+                price: "Free",
                 details:
-                  "Enterprise controls, private deployment options, and support SLAs.",
+                  "Built by developers, for developers. Always free.",
               },
             ].map((plan) => (
               <Card
                 key={plan.title}
-                className={plan.title === "Pro" ? "ring-2 ring-primary" : ""}
+                className={plan.title === "Forever" ? "ring-2 ring-primary" : ""}
               >
                 <CardContent className="p-5">
                   <p className="text-sm text-muted-foreground">{plan.title}</p>

@@ -2,6 +2,8 @@
 
 import { cn } from "@midday/ui/cn";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 
 type FooterLink = {
   href: string;
@@ -14,7 +16,19 @@ type FooterSection = {
   links: FooterLink[];
 };
 
+const ROTATING_WORDS = ["Enhanced", "Development", "Experience"];
+
 export function Footer() {
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentWordIndex((prev) => (prev + 1) % ROTATING_WORDS.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const docsQuickLinks: FooterLink[] = [
     { href: "/docs/getting-started", label: "Getting Started" },
     { href: "/docs/shortcuts", label: "Shortcuts" },
@@ -142,26 +156,33 @@ export function Footer() {
             </span>
           </a>
           <p className="font-sans text-sm text-muted-foreground">
-            © {new Date().getFullYear()} DX Labs AB. All rights reserved.
+            © {new Date().getFullYear()} dx. All rights reserved.
           </p>
         </div>
       </div>
 
       <div className="absolute bottom-0 left-0 sm:left-1/2 sm:-translate-x-1/2 translate-y-[22%] sm:translate-y-[36%] bg-background overflow-hidden pointer-events-none">
-        <h1
-          className={cn(
-            "font-sans text-[190px] sm:text-[470px] leading-none select-none",
-            "text-secondary",
-            "[WebkitTextStroke:1px_hsl(var(--muted-foreground))]",
-            "[textStroke:1px_hsl(var(--muted-foreground))]",
-          )}
-          style={{
-            WebkitTextStroke: "1px hsl(var(--muted-foreground))",
-            color: "hsl(var(--secondary))",
-          }}
-        >
-          dx
-        </h1>
+        <AnimatePresence mode="wait">
+          <motion.h1
+            key={currentWordIndex}
+            className={cn(
+              "font-sans text-[120px] sm:text-[280px] leading-none select-none",
+              "text-secondary",
+              "[WebkitTextStroke:1px_hsl(var(--muted-foreground))]",
+              "[textStroke:1px_hsl(var(--muted-foreground))]",
+            )}
+            style={{
+              WebkitTextStroke: "1px hsl(var(--muted-foreground))",
+              color: "hsl(var(--secondary))",
+            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          >
+            {ROTATING_WORDS[currentWordIndex]}
+          </motion.h1>
+        </AnimatePresence>
       </div>
     </footer>
   );

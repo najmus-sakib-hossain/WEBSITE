@@ -65,7 +65,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
 
         {/* Desktop nav */}
         {!hideMenuItems ? (
-          <nav className="hidden xl:flex items-center gap-1">
+          <nav className="hidden xl:flex items-center gap-1 bg-red-500 mx-auto">
             {/* Home */}
             <Link
               href="/"
@@ -86,12 +86,12 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
                 </svg>
               </button>
               <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-0 pt-2 z-50">
-                <div className="w-72 border border-border bg-background/98 backdrop-blur-md p-2 shadow-md">
+                <div className="w-72 border border-border bg-background backdrop-blur-md p-2 shadow-lg rounded-md">
                   {productDropdown.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex flex-col gap-0.5 rounded-sm px-3 py-2.5 hover:bg-muted/50 transition-colors"
+                      className="flex flex-col gap-0.5 rounded-sm px-3 py-2.5 hover:bg-muted transition-colors"
                     >
                       <span className="text-sm text-foreground">{item.label}</span>
                       <span className="text-xs text-muted-foreground">{item.desc}</span>
@@ -110,12 +110,12 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
             </Link>
 
             {/* Pricing */}
-            <Link
+            {/* <Link
               href="/pricing"
               className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Pricing
-            </Link>
+            </Link> */}
 
             {/* Docs dropdown */}
             <div className="relative group">
@@ -129,12 +129,12 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
                 </svg>
               </Link>
               <div className="pointer-events-none opacity-0 -translate-y-1 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
-                <div className="w-56 border border-border bg-background/98 backdrop-blur-md p-2 shadow-md">
+                <div className="w-56 border border-border bg-background backdrop-blur-md p-2 shadow-lg rounded-md">
                   {docsNavigation.map((docsItem) => (
                     <Link
                       key={docsItem.href}
                       href={docsItem.href}
-                      className="block rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      className="block rounded-sm px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       {docsItem.label}
                     </Link>
@@ -159,7 +159,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
             <Link href="/docs">Read Docs</Link>
           </Button>
           <Button asChild className="btn-inverse h-9 px-4">
-            <Link href="/download">Download DX ▶</Link>
+            <Link href="/download">Explore DX</Link>
           </Button>
         </div>
 
@@ -180,7 +180,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          className="xl:hidden border-b border-border bg-background/95 backdrop-blur-md"
+          className="xl:hidden border-b border-border bg-background backdrop-blur-md"
         >
           <div className="px-4 py-4 flex flex-col gap-1">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground px-2 py-2 block" onClick={() => setIsOpen(false)}>Home</Link>
