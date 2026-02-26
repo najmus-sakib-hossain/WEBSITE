@@ -118,7 +118,7 @@ fn main() -> Result<()> {
             commit2,
         } => cli::diff::run(path.as_deref(), commit1.as_deref(), commit2.as_deref()),
         Command::Checkout { commit_id } => cli::checkout::run(&commit_id),
-        Command::Push { remote, .. } => cli::push::run(&remote),
+        Command::Push { remote, mirror, pro } => cli::push::run(&remote, mirror.as_deref(), pro),
         Command::Pull { remote } => cli::pull::run(&remote),
         Command::Auth { backend, token } => cli::auth::run(&backend, token.as_deref()),
         Command::VibeDemo => cli::vibe_demo::run(),

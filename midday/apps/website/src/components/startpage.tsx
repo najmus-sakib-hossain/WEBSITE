@@ -2,6 +2,7 @@
 
 import { useGSAP } from "@gsap/react";
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@midday/ui/badge";
 import { Button } from "@midday/ui/button";
 import { Card, CardContent } from "@midday/ui/card";
@@ -13,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@midday/ui/table";
+import { Separator } from "@midday/ui/separator";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion } from "motion/react";
@@ -212,6 +214,70 @@ const mediaPillars = [
   "5000+ fonts, 219+ icon sets, and 1M+ icons",
   "Version control for media assets with rollback support",
   "Custom provider linking and reusable asset workflows",
+];
+
+const heroFeatures = [
+  {
+    label: "Forge",
+    headline: "Unlimited Free Storage for Every Media Type",
+    sub: "Video → YouTube · Images → Pinterest · Audio → SoundCloud · 3D → Sketchfab · Code → GitHub",
+  },
+  {
+    label: "Traffic Security",
+    headline: "AI That Acts Autonomously — Without Compromising Safety",
+    sub: "Green auto-execute · Yellow warn · Red backup-then-execute · Auto-hash · Built-in Firewall & VPN",
+  },
+  {
+    label: "Check",
+    headline: "500-Point Anime Rank System for Every Project",
+    sub: "F → SSSSS · Security scanner · Code linter · Media linter · Full audit reports",
+  },
+  {
+    label: "Media Engine",
+    headline: "5,000+ Fonts · 1M+ Icons · 20+ Providers · Built-in Editor",
+    sub: "Fetch from Unsplash, Pexels, YouTube, Vimeo, Spotify, Sketchfab — edit, version, and collaborate",
+  },
+  {
+    label: "Works Everywhere",
+    headline: "9+ Native Platforms · Every Browser · Every IDE · Every Creative Tool",
+    sub: "macOS · Windows · Linux · Android · iOS · ChromeOS · watchOS · tvOS · Remote Web Console",
+  },
+  {
+    label: "100+ AI Providers",
+    headline: "Any Model. Any Provider. Even Offline.",
+    sub: "More providers than any competitor · Unlimited free local models · Hybrid cloud/offline switching",
+  },
+];
+
+const builtInTools = [
+  {
+    name: "Workspace",
+    desc: "Maintain a clean, organized workspace across any IDE. Consistent file layout, context sharing, and project scaffolding.",
+  },
+  {
+    name: "Serializer",
+    desc: "The most human-readable, most token-efficient, and fastest serializer in the world. 70–90% smaller payloads than JSON.",
+  },
+  {
+    name: "i18n",
+    desc: "Translate any text to any language. Speech-to-text and text-to-speech — free and unlimited.",
+  },
+  {
+    name: "Driven",
+    desc: "Maintain spec-driven AI workflows instead of vibe-coding AI slop. Deterministic, reproducible, auditable.",
+  },
+  {
+    name: "DCP",
+    desc: "Like MCP, A2A, and ACP — but more token-efficient, faster, and better. Drop-in protocol for agent communication.",
+  },
+];
+
+const extensionsList = [
+  { category: "Browsers", items: "Chrome, Safari, Firefox, Edge, Arc, Brave, Opera" },
+  { category: "IDEs & Editors", items: "VS Code, JetBrains (IntelliJ, WebStorm, PyCharm), Neovim, Zed" },
+  { category: "Design Tools", items: "Figma, Adobe Photoshop, Adobe Illustrator, Sketch, Canva" },
+  { category: "Video Editors", items: "DaVinci Resolve, Adobe Premiere Pro, Final Cut Pro" },
+  { category: "Communication", items: "WhatsApp, Telegram, Discord, Slack, Microsoft Teams" },
 ];
 
 type PillarKey = "forge" | "traffic" | "check" | "media";
@@ -415,18 +481,72 @@ function VideoPlaceholderStrip({
         {items.map((item) => (
           <div
             key={item}
-            className="dx-video-card min-w-[260px] sm:min-w-[320px] md:min-w-[360px] border border-border bg-secondary/20 p-4"
+            className="dx-video-card min-w-[260px] sm:min-w-[320px] md:min-w-[360px] border border-border overflow-hidden"
           >
-            <div className="h-36 sm:h-40 border border-border bg-background/80 flex items-center justify-center">
-              <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                Video Placeholder
-              </span>
+            <div className="relative h-36 sm:h-40">
+              <Image
+                src="/images/thumbnail.png"
+                alt={item}
+                fill
+                className="object-cover"
+                sizes="360px"
+              />
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full border-2 border-white/80 flex items-center justify-center">
+                  <span className="text-white text-lg ml-0.5">▶</span>
+                </div>
+              </div>
             </div>
-            <p className="mt-3 text-sm text-foreground">{item}</p>
+            <div className="p-3 bg-background">
+              <p className="text-sm text-foreground">{item}</p>
+            </div>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function FeatureHeroBanner({
+  label,
+  headline,
+  sub,
+}: {
+  label: string;
+  headline: string;
+  sub: string;
+}) {
+  return (
+    <motion.section
+      className="relative overflow-hidden my-8"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="relative h-[320px] sm:h-[380px]">
+        <Image
+          src="/images/thumbnail.png"
+          alt={headline}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority={false}
+        />
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+          <Badge variant="secondary" className="mb-4 text-xs uppercase tracking-wider">
+            {label}
+          </Badge>
+          <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-white max-w-4xl leading-tight">
+            {headline}
+          </h2>
+          <p className="mt-4 text-sm sm:text-base text-white/80 max-w-3xl">
+            {sub}
+          </p>
+        </div>
+      </div>
+    </motion.section>
   );
 }
 
@@ -634,6 +754,34 @@ export function StartPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* === FEATURE HERO BANNERS === */}
+      <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
+        <Separator className="my-8" />
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="font-serif text-3xl sm:text-4xl text-foreground">
+            Game-Changing Features That Set DX Apart
+          </h2>
+          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+            Every feature is designed to go viral. This is not incremental — it is a paradigm shift.
+          </p>
+        </motion.div>
+      </div>
+
+      {heroFeatures.map((feature) => (
+        <FeatureHeroBanner
+          key={feature.label}
+          label={feature.label}
+          headline={feature.headline}
+          sub={feature.sub}
+        />
+      ))}
 
       <div className="dx-home-section">
         <Section
@@ -1094,6 +1242,12 @@ export function StartPage() {
         </Section>
       </div>
 
+      <FeatureHeroBanner
+        label="DX Forge"
+        headline="Viral-Ready Version Control — Code, Media, Models, Everything"
+        sub="Store output to your own channels, version every asset, and distribute with a built-in flywheel. This is version control for creators and developers alike."
+      />
+
       <div className="dx-home-section">
         <Section
           id="forge"
@@ -1148,6 +1302,12 @@ export function StartPage() {
         </Section>
       </div>
 
+      <FeatureHeroBanner
+        label="Traffic Security"
+        headline="Your AI Agent Stays Autonomous — And Safe"
+        sub="Green means go. Yellow means warn. Red means guard. DX moves fast without sacrificing trust, and your sensitive data never reaches third-party calls unprotected."
+      />
+
       <div className="dx-home-section">
         <Section
           id="traffic-security"
@@ -1194,6 +1354,12 @@ export function StartPage() {
           />
         </Section>
       </div>
+
+      <FeatureHeroBanner
+        label="DX Check"
+        headline="500-Point Code + Media Quality Score That Actually Helps You Improve"
+        sub="From F to SSSSS — an anime-inspired rank system that audits naming, structure, security, and quality. Get a ranked score and fix guidance in seconds."
+      />
 
       <div className="dx-home-section">
         <Section
@@ -1242,6 +1408,12 @@ export function StartPage() {
           />
         </Section>
       </div>
+
+      <FeatureHeroBanner
+        label="Media Engine"
+        headline="Multimodal Generation, Workspace Discipline, and Token-Efficient Transport"
+        sub="Generate images, video, audio, and 3D. Organize with Driven spec-first workflows. Ship faster with DX Serializer's 70–90% token savings on every tool call."
+      />
 
       <div className="dx-home-section">
         <Section
@@ -1298,6 +1470,57 @@ export function StartPage() {
             title="Media Workflow Demo Reel"
             items={pillarVideos.media}
           />
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="built-in-tools"
+          title="Built-In Tools That Transform How You Work"
+          subtitle="Every DX workflow ships with a complete power suite — no plugins required."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {builtInTools.map((tool) => (
+              <Card key={tool.name}>
+                <CardContent className="p-5">
+                  <p className="text-foreground font-medium">{tool.name}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{tool.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="dx-home-section">
+        <Section
+          id="extensions"
+          title="Extensions: DX Everywhere You Already Work"
+          subtitle="One context. Every tool. Browsers, IDEs, design, video, and communication — all connected."
+        >
+          <div className="overflow-x-auto border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Supported Tools</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {extensionsList.map((ext) => (
+                  <TableRow key={ext.category}>
+                    <TableCell className="text-foreground font-medium">{ext.category}</TableCell>
+                    <TableCell className="text-muted-foreground">{ext.items}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Card className="mt-6">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              Every extension shares the same DX context, model access, and token-saving pipeline — so you never lose state when you switch tools.
+            </CardContent>
+          </Card>
         </Section>
       </div>
 

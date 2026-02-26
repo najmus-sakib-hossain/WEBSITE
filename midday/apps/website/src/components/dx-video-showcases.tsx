@@ -2,6 +2,7 @@
 
 import { Button } from "@midday/ui/button";
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 type VideoItem = {
@@ -11,14 +12,23 @@ type VideoItem = {
 
 function VideoPlaceholder({ item }: { item: VideoItem }) {
   return (
-    <div className="border border-border bg-background">
-      <div className="aspect-video border-b border-border flex items-center justify-center">
-        <div className="w-16 h-16 rounded-full border border-border flex items-center justify-center text-2xl text-foreground/80">
-          ▶
+    <div className="border border-border bg-background overflow-hidden">
+      <div className="relative aspect-video border-b border-border">
+        <Image
+          src="/images/thumbnail.png"
+          alt={item.title}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 600px"
+        />
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full border-2 border-white/80 flex items-center justify-center">
+            <span className="text-white text-xl ml-0.5">▶</span>
+          </div>
         </div>
       </div>
       <div className="p-4">
-        <p className="text-sm text-foreground">Video: {item.title}</p>
+        <p className="text-sm text-foreground">{item.title}</p>
         <p className="text-xs text-muted-foreground mt-1">{item.subtitle} · Coming soon</p>
       </div>
     </div>

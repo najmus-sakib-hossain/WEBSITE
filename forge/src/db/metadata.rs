@@ -7,6 +7,8 @@ pub const FILES_TABLE: redb::TableDefinition<&str, &[u8]> = redb::TableDefinitio
 pub const CHUNKS_TABLE: redb::TableDefinition<&str, u32> = redb::TableDefinition::new("chunks");
 pub const COMMITS_TABLE: redb::TableDefinition<&str, &[u8]> = redb::TableDefinition::new("commits");
 pub const STAGING_TABLE: redb::TableDefinition<&str, &[u8]> = redb::TableDefinition::new("staging");
+/// Maps "file_path" → JSON array of mirror targets for that file.
+pub const MIRRORS_TABLE: redb::TableDefinition<&str, &[u8]> = redb::TableDefinition::new("mirrors");
 
 pub struct MetadataDb {
     pub db: redb::Database,
@@ -29,6 +31,9 @@ impl MetadataDb {
             write_txn
                 .open_table(STAGING_TABLE)
                 .context("open STAGING_TABLE")?;
+            write_txn
+                .open_table(MIRRORS_TABLE)
+                .context("open MIRRORS_TABLE")?;
         }
         write_txn.commit().context("commit create schema")?;
         Ok(Self { db })
@@ -36,6 +41,12 @@ impl MetadataDb {
 
     pub fn open(path: &Path) -> Result<Self> {
         let db = redb::Database::open(path).with_context(|| format!("open redb {}", path.display()))?;
+        // Ensure MIRRORS_TABLE exists for older repos that were init'd before it was added.
+        {
+            let write_txn = db.begin_write().context("begin write txn for schema migration")?;
+            write_txn.open_table(MIRRORS_TABLE).context("ensure MIRRORS_TABLE")?;
+            write_txn.commit().context("commit schema migration")?;
+        }
         Ok(Self { db })
     }
 
@@ -198,6 +209,41 @@ impl MetadataDb {
         let mut out = Vec::new();
         for entry in table.iter().context("iterate files table")? {
             let (key, val) = entry.context("read files table entry")?;
+            out.push((key.value().to_string(), val.value().to_vec()));
+        }
+        Ok(out)
+    }
+
+    // ---- mirror target persistence -----------------------------------------
+
+    /// Store mirror targets (as JSON bytes) for a file path.
+    pub fn store_mirror_targets(&self, file_path: &str, targets_json: &[u8]) -> Result<()> {
+        let write_txn = self.db.begin_write().context("begin write transaction")?;
+        {
+            let mut table = write_txn.open_table(MIRRORS_TABLE).context("open mirrors table")?;
+            table.insert(file_path, targets_json).context("insert mirror targets")?;
+        }
+        write_txn.commit().context("commit mirror targets")?;
+        Ok(())
+    }
+
+    /// Load mirror targets (as JSON bytes) for a file path.
+    pub fn get_mirror_targets(&self, file_path: &str) -> Result<Option<Vec<u8>>> {
+        let read_txn = self.db.begin_read().context("begin read transaction")?;
+        let table = read_txn.open_table(MIRRORS_TABLE).context("open mirrors table")?;
+        Ok(table
+            .get(file_path)
+            .context("read mirror targets")?
+            .map(|v| v.value().to_vec()))
+    }
+
+    /// List all file paths that have mirror targets stored.
+    pub fn get_all_mirror_targets(&self) -> Result<Vec<(String, Vec<u8>)>> {
+        let read_txn = self.db.begin_read().context("begin read transaction")?;
+        let table = read_txn.open_table(MIRRORS_TABLE).context("open mirrors table")?;
+        let mut out = Vec::new();
+        for entry in table.iter().context("iterate mirrors table")? {
+            let (key, val) = entry.context("read mirrors row")?;
             out.push((key.value().to_string(), val.value().to_vec()));
         }
         Ok(out)
