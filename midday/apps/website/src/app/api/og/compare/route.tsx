@@ -8,8 +8,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const competitorName = searchParams.get("name");
 
-  const hedvigSansFont = fetch(
-    "https://cdn.midday.ai/fonts/HedvigSans/HedvigLettersSans-Regular.ttf",
+  const jetbrainsMonoFont = fetch(
+    "https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxTOlOVkWf3pxOA.woff",
   ).then((res) => res.arrayBuffer());
 
   const title = competitorName
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   return new ImageResponse(
     <div
       tw="h-full w-full flex flex-col bg-[#0C0C0C] p-16"
-      style={{ fontFamily: "hedvig-sans" }}
+      style={{ fontFamily: "JetBrains Mono" }}
     >
       {/* Header with logo */}
       <div tw="flex items-center mb-12">
@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
       height: 630,
       fonts: [
         {
-          name: "hedvig-sans",
-          data: await hedvigSansFont,
+          name: "JetBrains Mono",
+          data: await jetbrainsMonoFont,
           style: "normal",
           weight: 400,
         },

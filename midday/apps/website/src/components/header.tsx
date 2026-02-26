@@ -14,7 +14,7 @@ interface HeaderProps {
 
 const productDropdown = [
   { href: "/assistant", label: "Assistant", desc: "6 modes: Ask, Agent, Plan, Search, Study, Research" },
-  { href: "/forge", label: "Forge", desc: "Unlimited VCS for every media type" },
+  // { href: "/forge", label: "Forge", desc: "Unlimited VCS for every media type" },
   { href: "/media", label: "Media", desc: "5,000+ fonts · 219 icon sets · 1M+ icons" },
   { href: "/check", label: "Check", desc: "500-point security & quality scoring" },
   { href: "/security", label: "Security", desc: "Green/Yellow/Red traffic safety system" },
@@ -65,7 +65,7 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
 
         {/* Desktop nav */}
         {!hideMenuItems ? (
-          <nav className="hidden xl:flex items-center gap-1 bg-red-500 mx-auto">
+          <nav className="hidden xl:flex items-center gap-1 mx-auto">
             {/* Home */}
             <Link
               href="/"
@@ -110,12 +110,24 @@ export function Header({ transparent = false, hideMenuItems = false }: HeaderPro
             </Link>
 
             {/* Pricing */}
-            {/* <Link
-              href="/pricing"
+            <Link
+              href="/providers"
               className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Pricing
-            </Link> */}
+              Providers
+            </Link>
+            <Link
+              href="/tools"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Tools
+            </Link>
+            <Link
+              href="/forge"
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Forge
+            </Link>
 
             {/* Docs dropdown */}
             <div className="relative group">

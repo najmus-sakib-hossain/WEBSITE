@@ -716,14 +716,14 @@ export function StartPage() {
 
   return (
     <div ref={scopeRef} className="min-h-screen bg-background pb-20">
-      <section className="pt-32 sm:pt-36">
+      <section className="pt-32 sm:pt-24">
         <div className="max-w-[1150px] mx-auto px-4 sm:px-8">
           <div className="dx-reveal text-center">
             {/* <p className="text-xs uppercase tracking-wide text-muted-foreground">Launching February 24, 2026</p> */}
             <div className="flex justify-center">
               <DxAiFace size={280} interactive={true} />
             </div>
-            <p className="mt-8 text-base sm:text-lg text-muted-foreground">Hi. I&apos;m DX.</p>
+            <p className="mt-6 text-base sm:text-lg text-muted-foreground">Hi. I&apos;m DX.</p>
             <h1 className="mt-3 font-serif text-4xl sm:text-5xl lg:text-6xl leading-tight text-foreground">
               The Developer Experience You Actually Deserve.
             </h1>
