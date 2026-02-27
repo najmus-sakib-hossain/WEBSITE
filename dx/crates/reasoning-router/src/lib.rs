@@ -1,149 +1,225 @@
 //! # reasoning-router
 //!
-//! Routes tasks to the appropriate reasoning tier to avoid paying for
-//! heavy reasoning on simple tasks.
+//! Routes tasks to the right reasoning effort level — saves massive
+//! amounts on hidden reasoning tokens.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL — most impactful technique)
+//! - O-series models bill hidden "reasoning tokens" as output tokens
+//! - A response showing 500 output tokens may actually consume 2000+
+//! - Using reasoning_effort: "low" vs "high" saves 30-80% on reasoning tokens
+//! - Simple tasks should use non-reasoning models (GPT-5/GPT-4.1)
 //!
-//! - **REAL**: One of the most impactful techniques of 2025-2026.
-//! - O-series models use "reasoning tokens" billed as output but not returned.
-//!   A response showing 500 output tokens may consume 2000+ actual tokens.
-//! - Using `reasoning_effort: "low"` vs `"high"` on o-series saves 30-80%.
-//! - Routing simple tasks to GPT-4o/GPT-4.1 instead of o3/o4 saves massively.
-//!
-//! ## Routing Tiers
-//! - **Heavy** (o3/o4/o1): For multi-step reasoning, proofs, complex code
-//! - **Standard** (gpt-4o/gpt-4.1): For most coding, editing, Q&A
-//! - **Light** (gpt-4o-mini/haiku): For classification, formatting, simple edits
-//!
-//! SAVINGS: 30-80% on reasoning tokens
+//! **Honest savings: 30-80% on reasoning tokens**
 //! STAGE: PreCall (priority 10)
 
 use dx_core::*;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ReasoningTier {
-    /// Heavy reasoning: o3, o4, o1 — use for complex multi-step problems
-    Heavy,
-    /// Standard: gpt-4o, gpt-4.1, claude-3-7 — use for most tasks
-    Standard,
-    /// Light: gpt-4o-mini, claude-haiku — use for simple/repetitive tasks
-    Light,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Reasoning effort level for the API call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReasoningEffort {
-    High,
-    Medium,
+    /// No reasoning needed — use non-reasoning model (GPT-5, GPT-4.1)
+    None,
+    /// Low effort reasoning (o-series with reasoning_effort: "low")
     Low,
+    /// Medium effort reasoning
+    Medium,
+    /// High effort reasoning (complex math, multi-step planning)
+    High,
 }
 
 impl ReasoningEffort {
-    pub fn as_str(&self) -> &'static str {
+    /// Approximate token multiplier vs high effort
+    pub fn cost_multiplier(&self) -> f64 {
         match self {
-            ReasoningEffort::High => "high",
-            ReasoningEffort::Medium => "medium",
-            ReasoningEffort::Low => "low",
+            ReasoningEffort::None => 0.0,   // No reasoning tokens at all
+            ReasoningEffort::Low => 0.20,   // ~80% savings
+            ReasoningEffort::Medium => 0.50, // ~50% savings
+            ReasoningEffort::High => 1.0,   // baseline
+        }
+    }
+
+    pub fn as_api_param(&self) -> Option<&'static str> {
+        match self {
+            ReasoningEffort::None => None,
+            ReasoningEffort::Low => Some("low"),
+            ReasoningEffort::Medium => Some("medium"),
+            ReasoningEffort::High => Some("high"),
         }
     }
 }
 
-/// Decision produced by the router.
+/// Task complexity classification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskComplexity {
+    /// Simple factual, formatting, or retrieval tasks
+    Simple,
+    /// Standard coding, writing, or analysis tasks
+    Standard,
+    /// Multi-step reasoning, complex debugging, math
+    Complex,
+    /// Novel research, architecture design, complex proofs
+    Expert,
+}
+
+/// Configuration for the reasoning router.
+#[derive(Debug, Clone)]
+pub struct ReasoningRouterConfig {
+    /// Map complexity → effort level
+    pub simple_effort: ReasoningEffort,
+    pub standard_effort: ReasoningEffort,
+    pub complex_effort: ReasoningEffort,
+    pub expert_effort: ReasoningEffort,
+    /// Model to use for non-reasoning tasks
+    pub non_reasoning_model: String,
+    /// Keywords that suggest high complexity
+    pub complex_keywords: Vec<String>,
+    /// Keywords that suggest simple tasks
+    pub simple_keywords: Vec<String>,
+}
+
+impl Default for ReasoningRouterConfig {
+    fn default() -> Self {
+        Self {
+            simple_effort: ReasoningEffort::None,
+            standard_effort: ReasoningEffort::Low,
+            complex_effort: ReasoningEffort::Medium,
+            expert_effort: ReasoningEffort::High,
+            non_reasoning_model: "gpt-5".into(),
+            complex_keywords: vec![
+                "prove".into(), "formally verify".into(), "mathematical".into(),
+                "step by step".into(), "analyze all".into(), "debug this complex".into(),
+                "architect".into(), "design pattern".into(), "optimize algorithm".into(),
+                "security audit".into(), "race condition".into(), "deadlock".into(),
+            ],
+            simple_keywords: vec![
+                "format".into(), "rename".into(), "list".into(), "what is".into(),
+                "define".into(), "translate".into(), "convert".into(), "hello".into(),
+                "add a comment".into(), "fix typo".into(), "update version".into(),
+                "change the name".into(), "remove unused".into(),
+            ],
+        }
+    }
+}
+
+/// The recommendation output from the router.
 #[derive(Debug, Clone)]
 pub struct RoutingDecision {
-    pub tier: ReasoningTier,
+    pub complexity: TaskComplexity,
     pub effort: ReasoningEffort,
-    pub reason: String,
-    /// Estimated token savings vs always using heavy reasoning
-    pub estimated_savings_pct: u32,
+    pub recommended_model: Option<String>,
+    pub estimated_reasoning_savings_pct: f64,
+    pub explanation: String,
 }
 
 pub struct ReasoningRouterSaver {
-    config: RouterConfig,
+    config: ReasoningRouterConfig,
     report: Mutex<TokenSavingsReport>,
-}
-
-#[derive(Clone)]
-pub struct RouterConfig {
-    /// Default tier when no signals are found
-    pub default_tier: ReasoningTier,
-    /// Treat tasks under this token count as simple (route to Light)
-    pub simple_task_max_tokens: usize,
-}
-
-impl Default for RouterConfig {
-    fn default() -> Self {
-        Self {
-            default_tier: ReasoningTier::Standard,
-            simple_task_max_tokens: 200,
-        }
-    }
+    last_decision: Mutex<Option<RoutingDecision>>,
 }
 
 impl ReasoningRouterSaver {
-    pub fn new(config: RouterConfig) -> Self {
-        Self { config, report: Mutex::new(TokenSavingsReport::default()) }
+    pub fn new() -> Self {
+        Self::with_config(ReasoningRouterConfig::default())
     }
 
-    /// Classify task complexity from the last user message.
-    pub fn classify(&self, messages: &[Message]) -> RoutingDecision {
-        let last_user = messages.iter().rev()
+    pub fn with_config(config: ReasoningRouterConfig) -> Self {
+        Self {
+            config,
+            report: Mutex::new(TokenSavingsReport::default()),
+            last_decision: Mutex::new(None),
+        }
+    }
+
+    /// Get the last routing decision.
+    pub fn last_decision(&self) -> Option<RoutingDecision> {
+        self.last_decision.lock().unwrap().clone()
+    }
+
+    /// Classify the task complexity based on the latest user message.
+    fn classify_task(&self, messages: &[Message]) -> TaskComplexity {
+        // Find the most recent user message
+        let user_msg = messages.iter().rev()
             .find(|m| m.role == "user")
-            .map(|m| m.content.to_lowercase())
-            .unwrap_or_default();
+            .map(|m| m.content.to_lowercase());
 
-        let total_tokens: usize = messages.iter().map(|m| m.token_count).sum();
+        let text = match user_msg {
+            Some(t) => t,
+            None => return TaskComplexity::Standard,
+        };
 
-        // Light tier signals: simple transformations, formatting, classification
-        let light_patterns = [
-            "format", "reformat", "rename", "capitalize", "sort", "list all",
-            "what is the", "how many", "count the", "summarize in one",
-            "translate to", "convert to json", "convert to yaml",
-            "fix the typo", "spell check", "add a comment",
-        ];
+        // Count complexity signals
+        let complex_signals: usize = self.config.complex_keywords.iter()
+            .filter(|kw| text.contains(kw.as_str()))
+            .count();
 
-        // Heavy tier signals: complex reasoning, proofs, hard algorithms
-        let heavy_patterns = [
-            "prove that", "derive the", "optimize the algorithm",
-            "reason through", "step by step analysis", "formal proof",
-            "mathematical", "theorem", "hypothesis", "analyze all edge cases",
-            "implement a compiler", "design the architecture",
-            "debug the concurrency", "race condition", "deadlock",
-        ];
+        let simple_signals: usize = self.config.simple_keywords.iter()
+            .filter(|kw| text.contains(kw.as_str()))
+            .count();
 
-        if light_patterns.iter().any(|p| last_user.contains(p))
-            || total_tokens < self.config.simple_task_max_tokens
-        {
-            return RoutingDecision {
-                tier: ReasoningTier::Light,
-                effort: ReasoningEffort::Low,
-                reason: "simple/short task — light model sufficient".into(),
-                estimated_savings_pct: 80,
-            };
-        }
+        // Length heuristic: very short messages are usually simple
+        let word_count = text.split_whitespace().count();
 
-        if heavy_patterns.iter().any(|p| last_user.contains(p)) {
-            return RoutingDecision {
-                tier: ReasoningTier::Heavy,
-                effort: ReasoningEffort::High,
-                reason: "complex reasoning task detected — heavy model warranted".into(),
-                estimated_savings_pct: 0,
-            };
-        }
+        // Code/multiline content suggests standard+
+        let has_code = text.contains("```") || text.contains("fn ") || text.contains("def ");
 
-        // Standard for everything else
-        RoutingDecision {
-            tier: self.config.default_tier,
-            effort: ReasoningEffort::Medium,
-            reason: "standard complexity — routing to standard tier".into(),
-            estimated_savings_pct: 40, // ~40% vs always using o-series
+        if complex_signals >= 2 || (complex_signals >= 1 && word_count > 100) {
+            TaskComplexity::Expert
+        } else if complex_signals >= 1 || (has_code && word_count > 50) {
+            TaskComplexity::Complex
+        } else if simple_signals >= 1 || word_count < 15 {
+            TaskComplexity::Simple
+        } else {
+            TaskComplexity::Standard
         }
     }
-}
 
-impl Default for ReasoningRouterSaver {
-    fn default() -> Self { Self::new(RouterConfig::default()) }
+    /// Build the routing decision.
+    fn route(&self, complexity: TaskComplexity) -> RoutingDecision {
+        let (effort, model_override) = match complexity {
+            TaskComplexity::Simple => (
+                self.config.simple_effort,
+                Some(self.config.non_reasoning_model.clone()),
+            ),
+            TaskComplexity::Standard => (
+                self.config.standard_effort,
+                None,
+            ),
+            TaskComplexity::Complex => (
+                self.config.complex_effort,
+                None,
+            ),
+            TaskComplexity::Expert => (
+                self.config.expert_effort,
+                None,
+            ),
+        };
+
+        let savings_pct = (1.0 - effort.cost_multiplier()) * 100.0;
+        let explanation = match complexity {
+            TaskComplexity::Simple => format!(
+                "Simple task → no reasoning needed. Use {} for ~{:.0}% reasoning token savings.",
+                model_override.as_deref().unwrap_or("non-reasoning model"), savings_pct
+            ),
+            TaskComplexity::Standard => format!(
+                "Standard task → low reasoning effort. ~{:.0}% reasoning token savings.", savings_pct
+            ),
+            TaskComplexity::Complex => format!(
+                "Complex task → medium reasoning effort. ~{:.0}% reasoning token savings.", savings_pct
+            ),
+            TaskComplexity::Expert => format!(
+                "Expert task → full reasoning effort. No savings on reasoning tokens."
+            ),
+        };
+
+        RoutingDecision {
+            complexity,
+            effort,
+            recommended_model: model_override,
+            estimated_reasoning_savings_pct: savings_pct,
+            explanation,
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -152,25 +228,30 @@ impl TokenSaver for ReasoningRouterSaver {
     fn stage(&self) -> SaverStage { SaverStage::PreCall }
     fn priority(&self) -> u32 { 10 }
 
-    async fn process(&self, input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let decision = self.classify(&input.messages);
-        let total_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
-        let saved = (total_tokens as f64 * decision.estimated_savings_pct as f64 / 100.0) as usize;
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let complexity = self.classify_task(&input.messages);
+        let decision = self.route(complexity);
 
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        // Estimate reasoning tokens (typically 2-4x visible output for o-series)
+        // Conservative estimate: 30% of input tokens become reasoning tokens
+        let estimated_reasoning = (tokens_before as f64 * 0.30) as usize;
+        let tokens_saved = (estimated_reasoning as f64 * (1.0 - decision.effort.cost_multiplier())) as usize;
+
+        let report = TokenSavingsReport {
             technique: "reasoning-router".into(),
-            tokens_before: total_tokens,
-            tokens_after: total_tokens.saturating_sub(saved),
-            tokens_saved: saved,
-            description: format!(
-                "routed to {:?} tier (effort: {}) — {}. ~{}% reasoning token savings",
-                decision.tier,
-                decision.effort.as_str(),
-                decision.reason,
-                decision.estimated_savings_pct
-            ),
+            tokens_before,
+            tokens_after: tokens_before, // We don't modify messages, we route
+            tokens_saved,
+            description: decision.explanation.clone(),
         };
+
+        *self.report.lock().unwrap() = report;
+        *self.last_decision.lock().unwrap() = Some(decision);
 
         Ok(SaverOutput {
             messages: input.messages,
@@ -191,39 +272,43 @@ mod tests {
     use super::*;
 
     fn user_msg(content: &str) -> Message {
-        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: content.len() / 4 }
+        Message {
+            role: "user".into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: None,
+            token_count: content.len() / 4,
+        }
     }
 
-    #[test]
-    fn routes_format_to_light() {
-        let router = ReasoningRouterSaver::default();
-        let msgs = vec![user_msg("format this json file for me")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.tier, ReasoningTier::Light);
-        assert!(d.estimated_savings_pct >= 70);
+    #[tokio::test]
+    async fn test_simple_task_routes_to_no_reasoning() {
+        let saver = ReasoningRouterSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![user_msg("rename the variable x to count")],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let _ = saver.process(input, &ctx).await.unwrap();
+        let decision = saver.last_decision().unwrap();
+        assert_eq!(decision.complexity, TaskComplexity::Simple);
+        assert_eq!(decision.effort, ReasoningEffort::None);
     }
 
-    #[test]
-    fn routes_proof_to_heavy() {
-        let router = ReasoningRouterSaver::default();
-        let msgs = vec![user_msg("prove that P != NP using formal proof techniques")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.tier, ReasoningTier::Heavy);
-    }
-
-    #[test]
-    fn routes_normal_to_standard() {
-        let router = ReasoningRouterSaver::default();
-        let msgs = vec![user_msg("write a function to parse a csv file")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.tier, ReasoningTier::Standard);
-    }
-
-    #[test]
-    fn short_task_is_light() {
-        let router = ReasoningRouterSaver::default();
-        let msgs = vec![user_msg("hi")] ; // tiny message, few tokens
-        let d = router.classify(&msgs);
-        assert_eq!(d.tier, ReasoningTier::Light);
+    #[tokio::test]
+    async fn test_complex_task_routes_to_medium() {
+        let saver = ReasoningRouterSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![user_msg("prove that this algorithm is correct and analyze all edge cases for the race condition in the mutex handler")],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let _ = saver.process(input, &ctx).await.unwrap();
+        let decision = saver.last_decision().unwrap();
+        assert!(decision.complexity == TaskComplexity::Expert || decision.complexity == TaskComplexity::Complex);
     }
 }

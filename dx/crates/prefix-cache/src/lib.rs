@@ -1,125 +1,122 @@
 //! # prefix-cache
 //!
-//! Ensures byte-for-byte stable prompt prefixes so provider-side
+//! Guarantees byte-for-byte stable prompt prefixes so provider-side
 //! prompt caching activates reliably.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md verified ✅)
+//! - OpenAI caches prefixes ≥1024 tokens automatically
+//! - Discount varies by model: GPT-5 (90%), GPT-4.1 (75%), GPT-4o/O-series (50%)
+//! - Anthropic cache_control marks static blocks
+//! - Cache TTL: 5-10 minutes of inactivity, up to 1 hour
+//! - This crate's value: **guaranteeing byte-for-byte prefix stability**
 //!
-//! Provider caching discounts vary by model (as of early 2026):
-//! - **GPT-5 family**: 90% off cached input tokens
-//! - **GPT-4.1 family**: 75% off cached input tokens
-//! - **GPT-4o / O-series**: 50% off cached input tokens
-//! - **Anthropic Claude**: 90% off with cache_control
-//!
-//! Caching activates automatically for prefixes ≥1024 tokens.
-//! Cache lifetime: 5-10 minutes of inactivity, up to 1 hour.
-//!
-//! This crate's job: guarantee the prefix is IDENTICAL byte-for-byte
-//! across consecutive turns so the provider's cache hits reliably.
-//!
-//! SAVINGS: 50-90% on cached input tokens (provider discount)
+//! ## Honest savings: 50-90% on cached input tokens (varies by model)
 //! STAGE: PromptAssembly (priority 10)
 
 use dx_core::*;
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 
-/// Model family for provider-specific cache discount.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ModelFamily {
-    /// GPT-5 family: 90% discount on cached tokens
-    Gpt5,
-    /// GPT-4.1 family: 75% discount on cached tokens
-    Gpt41,
-    /// GPT-4o / O-series: 50% discount on cached tokens
-    Gpt4o,
-    /// Anthropic Claude: 90% discount with cache_control
-    Claude,
-    /// Unknown model: 50% discount assumed (conservative)
-    Unknown,
+/// Configuration for prefix cache optimization.
+#[derive(Debug, Clone)]
+pub struct PrefixCacheConfig {
+    /// Minimum prefix length in tokens to bother stabilizing (OpenAI requires ≥1024)
+    pub min_prefix_tokens: usize,
+    /// Roles considered "stable" (system prompts, tool defs). They go first.
+    pub stable_roles: Vec<String>,
+    /// Whether to sort tool schemas deterministically for cache stability
+    pub sort_tools: bool,
+    /// Model-specific cache discount rates
+    pub model_discounts: BTreeMap<String, f64>,
 }
 
-impl ModelFamily {
-    pub fn from_model_name(model: &str) -> Self {
-        let m = model.to_lowercase();
-        if m.contains("gpt-5") { ModelFamily::Gpt5 }
-        else if m.contains("gpt-4.1") || m.contains("gpt4.1") { ModelFamily::Gpt41 }
-        else if m.contains("gpt-4o") || m.starts_with("o1") || m.starts_with("o3") || m.starts_with("o4") { ModelFamily::Gpt4o }
-        else if m.contains("claude") || m.contains("anthropic") { ModelFamily::Claude }
-        else { ModelFamily::Unknown }
-    }
+impl Default for PrefixCacheConfig {
+    fn default() -> Self {
+        let mut discounts = BTreeMap::new();
+        discounts.insert("gpt-5".into(), 0.90);
+        discounts.insert("gpt-5-turbo".into(), 0.90);
+        discounts.insert("gpt-4.1".into(), 0.75);
+        discounts.insert("gpt-4.1-mini".into(), 0.75);
+        discounts.insert("gpt-4o".into(), 0.50);
+        discounts.insert("gpt-4o-mini".into(), 0.50);
+        discounts.insert("o3".into(), 0.50);
+        discounts.insert("o4-mini".into(), 0.50);
+        discounts.insert("claude-3-5-sonnet".into(), 0.90);
+        discounts.insert("claude-4-opus".into(), 0.90);
 
-    /// Fractional discount on cached input tokens (0.90 = 90% off).
-    pub fn cache_discount(&self) -> f64 {
-        match self {
-            ModelFamily::Gpt5 => 0.90,
-            ModelFamily::Gpt41 => 0.75,
-            ModelFamily::Gpt4o => 0.50,
-            ModelFamily::Claude => 0.90,
-            ModelFamily::Unknown => 0.50,
+        Self {
+            min_prefix_tokens: 1024,
+            stable_roles: vec!["system".into()],
+            sort_tools: true,
+            model_discounts: discounts,
         }
     }
 }
 
 pub struct PrefixCacheSaver {
-    last_prefix_hash: std::sync::Mutex<Option<blake3::Hash>>,
-    report: std::sync::Mutex<TokenSavingsReport>,
+    config: PrefixCacheConfig,
+    last_prefix_hash: Mutex<Option<blake3::Hash>>,
+    prefix_hit_streak: Mutex<u64>,
+    report: Mutex<TokenSavingsReport>,
 }
 
 impl PrefixCacheSaver {
     pub fn new() -> Self {
+        Self::with_config(PrefixCacheConfig::default())
+    }
+
+    pub fn with_config(config: PrefixCacheConfig) -> Self {
         Self {
-            last_prefix_hash: std::sync::Mutex::new(None),
-            report: std::sync::Mutex::new(TokenSavingsReport::default()),
+            config,
+            last_prefix_hash: Mutex::new(None),
+            prefix_hit_streak: Mutex::new(0),
+            report: Mutex::new(TokenSavingsReport::default()),
         }
     }
 
-    /// Sort tools alphabetically — critical for cache stability.
-    pub fn sort_tools(tools: &mut [ToolSchema]) {
-        tools.sort_by(|a, b| a.name.cmp(&b.name));
-    }
-
-    /// Recursively sort JSON object keys via BTreeMap.
-    /// Same logical schema → identical serialized bytes.
-    pub fn canonicalize_schema(schema: &serde_json::Value) -> serde_json::Value {
-        match schema {
-            serde_json::Value::Object(map) => {
-                let sorted: BTreeMap<_, _> = map.iter()
-                    .map(|(k, v)| (k.clone(), Self::canonicalize_schema(v)))
-                    .collect();
-                serde_json::to_value(sorted).unwrap_or_default()
+    /// Separate messages into stable prefix (system) and dynamic tail.
+    fn partition_messages(&self, messages: &[Message]) -> (Vec<usize>, Vec<usize>) {
+        let mut stable = Vec::new();
+        let mut dynamic = Vec::new();
+        for (i, msg) in messages.iter().enumerate() {
+            if self.config.stable_roles.contains(&msg.role) {
+                stable.push(i);
+            } else {
+                dynamic.push(i);
             }
-            serde_json::Value::Array(arr) => {
-                serde_json::Value::Array(arr.iter().map(Self::canonicalize_schema).collect())
-            }
-            other => other.clone(),
         }
+        (stable, dynamic)
     }
 
-    /// Hash the stable prefix: system messages + sorted tool schemas.
-    pub fn compute_prefix_hash(messages: &[Message], tools: &[ToolSchema]) -> blake3::Hash {
+    /// Compute a deterministic hash of the stable prefix portion.
+    fn hash_prefix(messages: &[Message], tools: &[ToolSchema]) -> blake3::Hash {
         let mut hasher = blake3::Hasher::new();
-        for msg in messages.iter().filter(|m| m.role == "system") {
-            hasher.update(b"\x00sys\x00");
+        for msg in messages {
+            hasher.update(msg.role.as_bytes());
             hasher.update(msg.content.as_bytes());
         }
         for tool in tools {
-            hasher.update(b"\x00tool\x00");
             hasher.update(tool.name.as_bytes());
-            let s = serde_json::to_string(&tool.parameters).unwrap_or_default();
-            hasher.update(s.as_bytes());
+            hasher.update(tool.description.as_bytes());
+            hasher.update(tool.parameters.to_string().as_bytes());
         }
         hasher.finalize()
     }
 
-    /// Sum tokens in the stable prefix (system messages + tools).
-    pub fn count_prefix_tokens(messages: &[Message], tools: &[ToolSchema]) -> usize {
-        messages.iter().filter(|m| m.role == "system").map(|m| m.token_count).sum::<usize>()
-            + tools.iter().map(|t| t.token_count).sum::<usize>()
+    /// Look up the discount rate for the current model.
+    fn discount_for_model(&self, model: &str) -> f64 {
+        // Try exact match first, then prefix match
+        if let Some(&d) = self.config.model_discounts.get(model) {
+            return d;
+        }
+        for (pattern, &discount) in &self.config.model_discounts {
+            if model.starts_with(pattern.as_str()) {
+                return discount;
+            }
+        }
+        // Conservative default
+        0.50
     }
-}
-
-impl Default for PrefixCacheSaver {
-    fn default() -> Self { Self::new() }
 }
 
 #[async_trait::async_trait]
@@ -128,67 +125,98 @@ impl TokenSaver for PrefixCacheSaver {
     fn stage(&self) -> SaverStage { SaverStage::PromptAssembly }
     fn priority(&self) -> u32 { 10 }
 
-    async fn process(&self, mut input: SaverInput, ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        // 1. Sort tools deterministically for cache stability
-        Self::sort_tools(&mut input.tools);
+    async fn process(
+        &self,
+        input: SaverInput,
+        ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let (stable_idxs, dynamic_idxs) = self.partition_messages(&input.messages);
 
-        // 2. Canonicalize each tool schema (sorted keys recursively)
-        for tool in &mut input.tools {
-            tool.parameters = Self::canonicalize_schema(&tool.parameters);
-            let s = serde_json::to_string(&tool.parameters).unwrap_or_default();
-            tool.token_count = (tool.name.len() + tool.description.len() + s.len()) / 4;
+        // Reorder: stable messages first (prefix), dynamic after
+        let mut ordered_messages: Vec<Message> = Vec::with_capacity(input.messages.len());
+        for &i in &stable_idxs {
+            ordered_messages.push(input.messages[i].clone());
+        }
+        for &i in &dynamic_idxs {
+            ordered_messages.push(input.messages[i].clone());
         }
 
-        // 3. System messages MUST come first (stable prefix before dynamic content)
-        input.messages.sort_by_key(|m| if m.role == "system" { 0u8 } else { 1u8 });
+        // Sort tools deterministically if configured
+        let mut tools = input.tools.clone();
+        if self.config.sort_tools {
+            tools.sort_by(|a, b| a.name.cmp(&b.name));
+        }
 
-        // 4. Compute prefix hash, check for cache hit
-        let current_hash = Self::compute_prefix_hash(&input.messages, &input.tools);
-        let mut last = self.last_prefix_hash.lock().unwrap();
-        let cache_hit = last.as_ref() == Some(&current_hash);
-        *last = Some(current_hash);
+        // Compute prefix hash (stable messages + sorted tools)
+        let prefix_messages: Vec<Message> = stable_idxs.iter()
+            .map(|&i| input.messages[i].clone())
+            .collect();
+        let prefix_hash = Self::hash_prefix(&prefix_messages, &tools);
 
-        // 5. Provider caching requires ≥1024 tokens in the prefix
-        let prefix_tokens = Self::count_prefix_tokens(&input.messages, &input.tools);
-        let qualifies = prefix_tokens >= 1024;
+        // Calculate prefix token count
+        let prefix_tokens: usize = prefix_messages.iter()
+            .map(|m| m.token_count)
+            .sum::<usize>()
+            + tools.iter().map(|t| t.token_count).sum::<usize>();
 
-        if cache_hit && qualifies {
-            let family = ModelFamily::from_model_name(&ctx.model);
-            let discount = family.cache_discount();
-            let effective_saved = (prefix_tokens as f64 * discount) as usize;
+        let total_tokens: usize = ordered_messages.iter()
+            .map(|m| m.token_count)
+            .sum::<usize>()
+            + tools.iter().map(|t| t.token_count).sum::<usize>();
 
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
-                technique: "prefix-cache".into(),
-                tokens_before: prefix_tokens,
-                tokens_after: prefix_tokens,
-                tokens_saved: effective_saved,
-                description: format!(
-                    "prefix cache hit [{}]: {} tokens × {:.0}% discount = {} effective saved",
-                    if ctx.model.is_empty() { "unknown model" } else { &ctx.model },
-                    prefix_tokens,
-                    discount * 100.0,
-                    effective_saved
-                ),
-            };
+        // Check if prefix is cacheable (≥ min_prefix_tokens)
+        let mut cache_hit = false;
+        if prefix_tokens >= self.config.min_prefix_tokens {
+            let mut last = self.last_prefix_hash.lock().unwrap();
+            if *last == Some(prefix_hash) {
+                cache_hit = true;
+                let mut streak = self.prefix_hit_streak.lock().unwrap();
+                *streak += 1;
+            } else {
+                let mut streak = self.prefix_hit_streak.lock().unwrap();
+                *streak = 0;
+            }
+            *last = Some(prefix_hash);
+        }
+
+        // Calculate savings
+        let discount = self.discount_for_model(&ctx.model);
+        let tokens_saved = if cache_hit {
+            (prefix_tokens as f64 * discount) as usize
         } else {
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
-                technique: "prefix-cache".into(),
-                tokens_before: prefix_tokens,
-                tokens_after: prefix_tokens,
-                tokens_saved: 0,
-                description: if !qualifies {
-                    format!("prefix too short for caching ({} < 1024 tokens)", prefix_tokens)
-                } else {
-                    "prefix changed — cache miss this turn".into()
-                },
-            };
-        }
+            0
+        };
+
+        let description = if cache_hit {
+            let streak = self.prefix_hit_streak.lock().unwrap();
+            format!(
+                "Prefix cache HIT: {} prefix tokens cached, {:.0}% discount for model '{}', streak: {}",
+                prefix_tokens, discount * 100.0, ctx.model, *streak
+            )
+        } else if prefix_tokens < self.config.min_prefix_tokens {
+            format!(
+                "Prefix too short ({} tokens < {} minimum). Reordered for future caching.",
+                prefix_tokens, self.config.min_prefix_tokens
+            )
+        } else {
+            format!(
+                "Prefix cache MISS (first turn or prefix changed). Stabilized {} prefix tokens for next turn.",
+                prefix_tokens
+            )
+        };
+
+        let report = TokenSavingsReport {
+            technique: "prefix-cache".into(),
+            tokens_before: total_tokens,
+            tokens_after: total_tokens.saturating_sub(tokens_saved),
+            tokens_saved,
+            description,
+        };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
+            messages: ordered_messages,
+            tools,
             images: input.images,
             skipped: false,
             cached_response: None,
@@ -205,63 +233,88 @@ mod tests {
     use super::*;
 
     fn sys_msg(content: &str, tokens: usize) -> Message {
-        Message { role: "system".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: tokens }
+        Message {
+            role: "system".into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: None,
+            token_count: tokens,
+        }
     }
 
-    fn tool(name: &str) -> ToolSchema {
-        ToolSchema { name: name.into(), description: "desc".into(), parameters: serde_json::json!({"type": "object"}), token_count: 50 }
+    fn user_msg(content: &str, tokens: usize) -> Message {
+        Message {
+            role: "user".into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: None,
+            token_count: tokens,
+        }
     }
 
-    #[test]
-    fn model_family_detection() {
-        assert_eq!(ModelFamily::from_model_name("gpt-5"), ModelFamily::Gpt5);
-        assert_eq!(ModelFamily::from_model_name("gpt-4.1-mini"), ModelFamily::Gpt41);
-        assert_eq!(ModelFamily::from_model_name("gpt-4o"), ModelFamily::Gpt4o);
-        assert_eq!(ModelFamily::from_model_name("claude-3-7-sonnet"), ModelFamily::Claude);
-        assert_eq!(ModelFamily::from_model_name("unknown-xyz"), ModelFamily::Unknown);
+    fn tool(name: &str, tokens: usize) -> ToolSchema {
+        ToolSchema {
+            name: name.into(),
+            description: format!("{} tool", name),
+            parameters: serde_json::json!({}),
+            token_count: tokens,
+        }
     }
 
-    #[test]
-    fn cache_discounts_match_docs() {
-        assert_eq!(ModelFamily::Gpt5.cache_discount(), 0.90);
-        assert_eq!(ModelFamily::Gpt41.cache_discount(), 0.75);
-        assert_eq!(ModelFamily::Gpt4o.cache_discount(), 0.50);
-        assert_eq!(ModelFamily::Claude.cache_discount(), 0.90);
-        assert_eq!(ModelFamily::Unknown.cache_discount(), 0.50);
+    #[tokio::test]
+    async fn test_prefix_reorder_and_stability() {
+        let saver = PrefixCacheSaver::new();
+        let ctx = SaverContext {
+            model: "gpt-4o".into(),
+            turn_number: 1,
+            ..Default::default()
+        };
+        let input = SaverInput {
+            messages: vec![
+                user_msg("hello", 100),
+                sys_msg("You are helpful.", 600),
+            ],
+            tools: vec![tool("read_file", 500)],
+            images: vec![],
+            turn_number: 1,
+        };
+
+        let out = saver.process(input, &ctx).await.unwrap();
+        // System message should be first (stable prefix)
+        assert_eq!(out.messages[0].role, "system");
+        assert_eq!(out.messages[1].role, "user");
+
+        let report = saver.last_savings();
+        // First call = miss
+        assert_eq!(report.tokens_saved, 0);
     }
 
-    #[test]
-    fn hash_is_deterministic() {
-        let msgs = vec![sys_msg("You are DX.", 5)];
-        let tools = vec![tool("read")];
-        assert_eq!(PrefixCacheSaver::compute_prefix_hash(&msgs, &tools),
-                   PrefixCacheSaver::compute_prefix_hash(&msgs, &tools));
-    }
+    #[tokio::test]
+    async fn test_cache_hit_on_second_call() {
+        let saver = PrefixCacheSaver::new();
+        let ctx = SaverContext {
+            model: "gpt-5".into(),
+            turn_number: 1,
+            ..Default::default()
+        };
+        let input = SaverInput {
+            messages: vec![
+                sys_msg("You are a coding assistant. Help the user with their code.", 1100),
+            ],
+            tools: vec![tool("read_file", 200)],
+            images: vec![],
+            turn_number: 1,
+        };
 
-    #[test]
-    fn sort_tools_alphabetical() {
-        let mut tools = vec![tool("write"), tool("ask"), tool("read")];
-        PrefixCacheSaver::sort_tools(&mut tools);
-        assert_eq!(tools[0].name, "ask");
-        assert_eq!(tools[1].name, "read");
-        assert_eq!(tools[2].name, "write");
-    }
+        // First call: miss
+        let _ = saver.process(input.clone(), &ctx).await.unwrap();
+        assert_eq!(saver.last_savings().tokens_saved, 0);
 
-    #[test]
-    fn canonicalize_sorts_json_keys() {
-        let input = serde_json::json!({ "z": "last", "a": "first" });
-        let out = PrefixCacheSaver::canonicalize_schema(&input);
-        let s = serde_json::to_string(&out).unwrap();
-        assert!(s.find('"' ).unwrap() < s.len()); // basic sanity
-        let a_pos = s.find("\"a\"").unwrap();
-        let z_pos = s.find("\"z\"").unwrap();
-        assert!(a_pos < z_pos);
-    }
-
-    #[test]
-    fn prefix_under_1024_does_not_qualify() {
-        let msgs = vec![sys_msg("short", 100)];
-        let tokens = PrefixCacheSaver::count_prefix_tokens(&msgs, &[]);
-        assert!(tokens < 1024);
+        // Second call with same prefix: hit
+        let _ = saver.process(input, &ctx).await.unwrap();
+        let report = saver.last_savings();
+        // GPT-5 = 90% discount on 1300 prefix tokens
+        assert!(report.tokens_saved > 0);
+        assert!(report.description.contains("HIT"));
     }
 }

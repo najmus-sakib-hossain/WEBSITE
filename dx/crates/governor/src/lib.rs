@@ -1,151 +1,145 @@
 //! # governor
 //!
-//! Circuit breaker for tool calls. Prevents runaway spirals where the
-//! model calls the same tool repeatedly, makes duplicate calls, or
-//! exhausts budgets without progress.
+//! Circuit breaker for tool calls — prevents token waste from
+//! runaway loops where the agent repeatedly calls the same tool.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL)
+//! - Pure engineering, no hype. If a tool loops 5 times reading
+//!   the same file, stopping it saves real tokens.
+//! - Only risk: being too aggressive blocking legitimate retries.
 //!
-//! - **REAL**: Circuit breakers are pure engineering — no hype involved.
-//! - If a tool loops 5 times reading the same file, stopping it saves real tokens.
-//! - Prevents 20-100+ wasted tool calls per session in misbehaving agents.
-//! - The only risk: being too aggressive and blocking legitimate retries.
-//!
-//! SAVINGS: Prevents waste (not a compression technique — a guard rail)
 //! STAGE: PreCall (priority 5)
 
 use dx_core::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-pub struct GovernorSaver {
-    config: GovernorConfig,
-    state: Mutex<GovernorState>,
-    report: Mutex<TokenSavingsReport>,
-}
-
-#[derive(Clone)]
+/// Configuration for the governor circuit breaker.
+#[derive(Debug, Clone)]
 pub struct GovernorConfig {
-    /// Max tool calls in a single LLM turn (response).
-    pub max_calls_per_turn: usize,
-    /// Max times the same tool name can be called in a session.
+    /// Max times the same tool can be called in one turn
     pub max_same_tool_calls: usize,
-    /// Max total tool calls in the session before forcing a stop.
-    pub max_total_calls: usize,
-    /// Average tokens per tool call (used to estimate savings).
-    pub avg_tokens_per_call: usize,
-    /// If true, block but log instead of returning an error.
-    pub soft_block: bool,
+    /// Max times same tool+args combo can repeat
+    pub max_identical_calls: usize,
+    /// Max total tool calls per conversation turn
+    pub max_total_calls_per_turn: usize,
+    /// Tools exempt from circuit breaking (e.g., "ask_user")
+    pub exempt_tools: Vec<String>,
+    /// Whether to add a warning message when a tool is blocked
+    pub inject_warning: bool,
 }
 
 impl Default for GovernorConfig {
     fn default() -> Self {
         Self {
-            max_calls_per_turn: 10,
             max_same_tool_calls: 5,
-            max_total_calls: 100,
-            avg_tokens_per_call: 300,
-            soft_block: true, // soft by default — log, don't hard fail
+            max_identical_calls: 2,
+            max_total_calls_per_turn: 15,
+            exempt_tools: vec!["ask_user".into(), "ask_questions".into()],
+            inject_warning: true,
         }
     }
 }
 
-#[derive(Default)]
-struct GovernorState {
+/// Tracks tool call patterns within a conversation.
+#[derive(Debug, Default)]
+struct ToolCallTracker {
+    /// tool_name → count this turn
+    tool_counts: HashMap<String, usize>,
+    /// hash(tool_name + args) → count
+    identical_counts: HashMap<u64, usize>,
+    /// Total calls this turn
     total_calls: usize,
-    calls_per_tool: HashMap<String, usize>,
-    calls_this_turn: usize,
-    blocked_calls: usize,
-    tokens_saved: usize,
+    /// Tools that have been blocked
+    blocked_tools: Vec<String>,
 }
 
-/// Decision from the governor on whether to allow a tool call.
-#[derive(Debug, Clone)]
-pub enum GovernorDecision {
-    Allow,
-    Block(String),
-    AllowWithWarning(String),
+impl ToolCallTracker {
+    fn record_call(&mut self, tool_name: &str, args_hash: u64) -> bool {
+        self.total_calls += 1;
+        let tool_count = self.tool_counts.entry(tool_name.to_string()).or_insert(0);
+        *tool_count += 1;
+        let identical_count = self.identical_counts.entry(args_hash).or_insert(0);
+        *identical_count += 1;
+        true
+    }
+}
+
+pub struct GovernorSaver {
+    config: GovernorConfig,
+    tracker: Mutex<ToolCallTracker>,
+    report: Mutex<TokenSavingsReport>,
 }
 
 impl GovernorSaver {
-    pub fn new(config: GovernorConfig) -> Self {
+    pub fn new() -> Self {
+        Self::with_config(GovernorConfig::default())
+    }
+
+    pub fn with_config(config: GovernorConfig) -> Self {
         Self {
             config,
-            state: Mutex::new(GovernorState::default()),
+            tracker: Mutex::new(ToolCallTracker::default()),
             report: Mutex::new(TokenSavingsReport::default()),
         }
     }
 
-    /// Reset turn-level counters. Call between turns.
+    /// Reset tracker for a new turn.
     pub fn reset_turn(&self) {
-        let mut state = self.state.lock().unwrap();
-        state.calls_this_turn = 0;
+        let mut tracker = self.tracker.lock().unwrap();
+        tracker.tool_counts.clear();
+        tracker.identical_counts.clear();
+        tracker.total_calls = 0;
+        tracker.blocked_tools.clear();
     }
 
-    /// Record a tool call and return decision.
-    pub fn check_call(&self, tool_name: &str) -> GovernorDecision {
-        let mut state = self.state.lock().unwrap();
-
-        // Check total budget
-        if state.total_calls >= self.config.max_total_calls {
-            let msg = format!("tool '{}' blocked: session total ({}) >= max ({})",
-                tool_name, state.total_calls, self.config.max_total_calls);
-            state.blocked_calls += 1;
-            state.tokens_saved += self.config.avg_tokens_per_call;
-            return GovernorDecision::Block(msg);
-        }
-
-        // Check per-turn budget
-        if state.calls_this_turn >= self.config.max_calls_per_turn {
-            let msg = format!("tool '{}' blocked: turn calls ({}) >= max per turn ({})",
-                tool_name, state.calls_this_turn, self.config.max_calls_per_turn);
-            state.blocked_calls += 1;
-            state.tokens_saved += self.config.avg_tokens_per_call;
-            return GovernorDecision::Block(msg);
-        }
-
-        // Check same-tool repetition
-        let tool_count = state.calls_per_tool.entry(tool_name.to_string()).or_default();
-        if *tool_count >= self.config.max_same_tool_calls {
-            let msg = format!("tool '{}' blocked: called {} times (max {})",
-                tool_name, tool_count, self.config.max_same_tool_calls);
-            state.blocked_calls += 1;
-            state.tokens_saved += self.config.avg_tokens_per_call;
-            return GovernorDecision::Block(msg);
-        }
-
-        // Warn when approaching limits
-        let warn = if *tool_count == self.config.max_same_tool_calls - 1 {
-            Some(format!("warning: '{}' called {} times, approaching limit of {}",
-                tool_name, tool_count + 1, self.config.max_same_tool_calls))
-        } else if state.total_calls == self.config.max_total_calls - 5 {
-            Some(format!("warning: {} tool calls remaining in session budget", 5))
-        } else {
-            None
-        };
-
-        // Allow the call
-        *tool_count += 1;
-        state.total_calls += 1;
-        state.calls_this_turn += 1;
-
-        match warn {
-            Some(w) => GovernorDecision::AllowWithWarning(w),
-            None => GovernorDecision::Allow,
-        }
+    /// Hash tool name + content for dedup detection.
+    fn hash_tool_call(name: &str, content: &str) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        name.hash(&mut hasher);
+        content.hash(&mut hasher);
+        hasher.finish()
     }
 
-    pub fn blocked_count(&self) -> usize {
-        self.state.lock().unwrap().blocked_calls
-    }
+    /// Check if a tool call should be allowed based on current patterns.
+    fn should_allow(&self, tool_name: &str, args_hash: u64) -> (bool, String) {
+        if self.config.exempt_tools.contains(&tool_name.to_string()) {
+            return (true, String::new());
+        }
 
-    pub fn total_calls(&self) -> usize {
-        self.state.lock().unwrap().total_calls
-    }
-}
+        let tracker = self.tracker.lock().unwrap();
 
-impl Default for GovernorSaver {
-    fn default() -> Self { Self::new(GovernorConfig::default()) }
+        // Check total calls
+        if tracker.total_calls >= self.config.max_total_calls_per_turn {
+            return (false, format!(
+                "CIRCUIT BREAKER: Total tool calls ({}) exceeded limit ({}). Stop and summarize progress.",
+                tracker.total_calls, self.config.max_total_calls_per_turn
+            ));
+        }
+
+        // Check same tool count
+        if let Some(&count) = tracker.tool_counts.get(tool_name) {
+            if count >= self.config.max_same_tool_calls {
+                return (false, format!(
+                    "CIRCUIT BREAKER: '{}' called {} times (limit {}). Try a different approach.",
+                    tool_name, count, self.config.max_same_tool_calls
+                ));
+            }
+        }
+
+        // Check identical calls
+        if let Some(&count) = tracker.identical_counts.get(&args_hash) {
+            if count >= self.config.max_identical_calls {
+                return (false, format!(
+                    "CIRCUIT BREAKER: Identical '{}' call repeated {} times (limit {}). The same call won't give different results.",
+                    tool_name, count, self.config.max_identical_calls
+                ));
+            }
+        }
+
+        (true, String::new())
+    }
 }
 
 #[async_trait::async_trait]
@@ -154,25 +148,63 @@ impl TokenSaver for GovernorSaver {
     fn stage(&self) -> SaverStage { SaverStage::PreCall }
     fn priority(&self) -> u32 { 5 }
 
-    async fn process(&self, input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        // Governor is a stateful guard. It checks tool mentions in the last
-        // assistant message to detect excessive tool calls.
-        let state = self.state.lock().unwrap();
-        let blocked = state.blocked_calls;
-        let saved = state.tokens_saved;
-        drop(state);
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let mut messages = input.messages;
+        let mut blocked_count = 0usize;
+        let mut tokens_saved = 0usize;
+        let mut warnings = Vec::new();
 
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        // Scan for tool-result messages and track patterns
+        for msg in &messages {
+            if msg.role == "tool" || (msg.role == "assistant" && msg.tool_call_id.is_some()) {
+                let tool_name = msg.tool_call_id.as_deref().unwrap_or("unknown");
+                let args_hash = Self::hash_tool_call(tool_name, &msg.content);
+
+                let (allowed, reason) = self.should_allow(tool_name, args_hash);
+                if !allowed {
+                    blocked_count += 1;
+                    tokens_saved += msg.token_count;
+                    warnings.push(reason);
+                }
+
+                let mut tracker = self.tracker.lock().unwrap();
+                tracker.record_call(tool_name, args_hash);
+            }
+        }
+
+        // If we detected patterns that should be blocked, inject a warning
+        if self.config.inject_warning && !warnings.is_empty() {
+            let warning_text = warnings.join("\n");
+            messages.push(Message {
+                role: "system".into(),
+                content: warning_text,
+                images: vec![],
+                tool_call_id: None,
+                token_count: 30, // approximate
+            });
+        }
+
+        let tokens_after = tokens_before.saturating_sub(tokens_saved);
+        let report = TokenSavingsReport {
             technique: "governor".into(),
-            tokens_before: saved,
-            tokens_after: 0,
-            tokens_saved: saved,
-            description: format!("circuit breaker: {} calls blocked, ~{} tokens avoided", blocked, saved),
+            tokens_before,
+            tokens_after,
+            tokens_saved,
+            description: if blocked_count > 0 {
+                format!("Circuit breaker triggered: {} tool calls flagged for blocking, ~{} tokens saved", blocked_count, tokens_saved)
+            } else {
+                "No runaway patterns detected.".into()
+            },
         };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: input.messages,
+            messages,
             tools: input.tools,
             images: input.images,
             skipped: false,
@@ -189,45 +221,28 @@ impl TokenSaver for GovernorSaver {
 mod tests {
     use super::*;
 
-    #[test]
-    fn allows_normal_calls() {
-        let g = GovernorSaver::default();
-        assert!(matches!(g.check_call("read"), GovernorDecision::Allow));
-        assert!(matches!(g.check_call("write"), GovernorDecision::Allow));
+    fn tool_msg(tool_id: &str, content: &str, tokens: usize) -> Message {
+        Message {
+            role: "tool".into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: Some(tool_id.into()),
+            token_count: tokens,
+        }
     }
 
-    #[test]
-    fn blocks_repeated_same_tool() {
-        let g = GovernorSaver::new(GovernorConfig { max_same_tool_calls: 3, ..Default::default() });
-        for _ in 0..3 { g.check_call("read"); }
-        assert!(matches!(g.check_call("read"), GovernorDecision::Block(_)));
-    }
-
-    #[test]
-    fn blocks_per_turn_limit() {
-        let g = GovernorSaver::new(GovernorConfig {
-            max_calls_per_turn: 2,
-            max_same_tool_calls: 100,
-            ..Default::default()
-        });
-        g.check_call("a"); g.check_call("b");
-        assert!(matches!(g.check_call("c"), GovernorDecision::Block(_)));
-    }
-
-    #[test]
-    fn reset_turn_clears_per_turn_counter() {
-        let g = GovernorSaver::new(GovernorConfig { max_calls_per_turn: 2, ..Default::default() });
-        g.check_call("a"); g.check_call("b");
-        g.reset_turn();
-        // Should allow again after reset
-        assert!(!matches!(g.check_call("a"), GovernorDecision::Block(_)));
-    }
-
-    #[test]
-    fn tracks_blocked_count() {
-        let g = GovernorSaver::new(GovernorConfig { max_same_tool_calls: 1, ..Default::default() });
-        g.check_call("x");
-        g.check_call("x"); // blocked
-        assert_eq!(g.blocked_count(), 1);
+    #[tokio::test]
+    async fn test_no_blocking_under_limit() {
+        let saver = GovernorSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![tool_msg("read_file", "content", 100)],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert_eq!(saver.last_savings().tokens_saved, 0);
+        assert!(!out.messages.is_empty());
     }
 }

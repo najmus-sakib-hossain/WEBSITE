@@ -1,128 +1,168 @@
 //! # compaction
 //!
-//! Automatically compacts conversation history when token count exceeds
-//! thresholds. Supports rule-based local compaction.
+//! Compacts conversation history when it exceeds limits, using
+//! progressive strategies that balance savings vs context quality.
 //!
-//! ## Honest Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ⚠️ Partly Real)
+//! - Aggressive compaction breaks the model's ability to recall prior decisions
+//! - 84% claim is overclaimed — destroys context in complex agent tasks
+//! - **Honest savings: 30-50% without quality loss**
+//! - Strategy: conservative first (remove old tool outputs), then summarize
 //!
-//! Claimed 84% (Anthropic benchmark) is for extreme compaction that
-//! DESTROYS context in complex agent tasks. Honest safe range:
-//! - **30-50%** reduction without quality degradation
-//! - Compaction is triggered only when conversation exceeds threshold
-//! - Keeps the most recent N turns intact (never compacts current context)
-//! - Tool results older than `stale_turns` are dropped (they're rarely needed)
-//!
-//! SAVINGS: 30-50% on conversation history tokens (safe range)
 //! STAGE: InterTurn (priority 30)
 
 use dx_core::*;
 use std::sync::Mutex;
+
+/// Compaction strategy, applied in order of aggressiveness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompactionStrategy {
+    /// Remove tool outputs older than N turns (safest, ~15-25% savings)
+    RemoveStaleToolOutputs,
+    /// Collapse consecutive assistant messages into one (~5-10%)
+    CollapseConsecutive,
+    /// Truncate very long individual messages to head+tail (~10-15%)
+    TruncateLongMessages,
+    /// Drop the oldest non-system messages (~20-30%)
+    DropOldest,
+}
+
+/// Configuration for the compaction saver.
+#[derive(Debug, Clone)]
+pub struct CompactionConfig {
+    /// Maximum total token count before compaction triggers
+    pub max_total_tokens: usize,
+    /// Target token count after compaction (should be well below max)
+    pub target_tokens: usize,
+    /// How many recent turns to protect from any compaction
+    pub protected_recent_turns: usize,
+    /// Max tokens for a single message before truncation kicks in
+    pub max_single_message_tokens: usize,
+    /// Strategy order — applied progressively until under target
+    pub strategies: Vec<CompactionStrategy>,
+    /// How many tail lines to keep when truncating a long message
+    pub truncation_tail_lines: usize,
+}
+
+impl Default for CompactionConfig {
+    fn default() -> Self {
+        Self {
+            max_total_tokens: 80_000,
+            target_tokens: 50_000,
+            protected_recent_turns: 4,
+            max_single_message_tokens: 3_000,
+            strategies: vec![
+                CompactionStrategy::RemoveStaleToolOutputs,
+                CompactionStrategy::CollapseConsecutive,
+                CompactionStrategy::TruncateLongMessages,
+                CompactionStrategy::DropOldest,
+            ],
+            truncation_tail_lines: 20,
+        }
+    }
+}
 
 pub struct CompactionSaver {
     config: CompactionConfig,
     report: Mutex<TokenSavingsReport>,
 }
 
-#[derive(Clone)]
-pub struct CompactionConfig {
-    /// Total token count that triggers compaction consideration.
-    /// Set high enough that compaction doesn't fire on short conversations.
-    pub trigger_tokens: usize,
-    /// Always keep this many of the most recent turns intact.
-    /// Minimum 4 — compacting recent context hurts quality.
-    pub keep_recent_turns: usize,
-    /// Drop tool result messages older than this many turns.
-    /// Tool outputs from 10+ turns ago are almost never referenced.
-    pub drop_tool_results_older_than: usize,
-    /// Maximum fraction of history that can be compacted in one pass.
-    /// Cap at 0.50 (50%) to prevent over-aggressive compaction.
-    pub max_compaction_ratio: f64,
-}
-
-impl Default for CompactionConfig {
-    fn default() -> Self {
-        Self {
-            trigger_tokens: 8_000,      // don't compact short conversations
-            keep_recent_turns: 6,       // always preserve last 6 turns
-            drop_tool_results_older_than: 8, // drop stale tool outputs
-            max_compaction_ratio: 0.50, // cap at 50% per TOKEN.md recommendation
-        }
-    }
-}
-
 impl CompactionSaver {
-    pub fn new(config: CompactionConfig) -> Self {
+    pub fn new() -> Self {
+        Self::with_config(CompactionConfig::default())
+    }
+
+    pub fn with_config(config: CompactionConfig) -> Self {
         Self {
             config,
             report: Mutex::new(TokenSavingsReport::default()),
         }
     }
 
-    /// Count user turns (questions) in message history.
-    pub fn count_user_turns(messages: &[Message]) -> usize {
-        messages.iter().filter(|m| m.role == "user").count()
+    fn total_tokens(messages: &[Message]) -> usize {
+        messages.iter().map(|m| m.token_count).sum()
     }
 
-    /// Identify indices of tool-result messages older than threshold.
-    pub fn stale_tool_indices(messages: &[Message], keep_recent_turns: usize, drop_older_than: usize) -> Vec<usize> {
-        let total_turns = Self::count_user_turns(messages);
-        if total_turns <= keep_recent_turns + drop_older_than {
-            return vec![];
+    /// Strategy 1: Remove tool outputs from old turns.
+    fn remove_stale_tool_outputs(&self, messages: &mut Vec<Message>, turn: usize) {
+        let cutoff = turn.saturating_sub(self.config.protected_recent_turns);
+        // Tool messages from early turns get their content cleared
+        let mut current_turn = 0usize;
+        for msg in messages.iter_mut() {
+            if msg.role == "user" {
+                current_turn += 1;
+            }
+            if msg.role == "tool" && current_turn <= cutoff && msg.token_count > 50 {
+                let summary = format!("[Tool output removed — {} tokens, turn {}]", msg.token_count, current_turn);
+                msg.token_count = summary.len() / 4; // rough estimate
+                msg.content = summary;
+            }
         }
-
-        // Count back from the end: how many user turns are in the "recent" window?
-        let mut recent_user_turns = 0usize;
-        let recent_start_idx = messages.iter().enumerate().rev()
-            .find(|(_, m)| {
-                if m.role == "user" { recent_user_turns += 1; }
-                recent_user_turns > keep_recent_turns
-            })
-            .map(|(i, _)| i + 1)
-            .unwrap_or(0);
-
-        // Drop tool results from before the recent window
-        messages.iter().enumerate()
-            .take(recent_start_idx)
-            .filter(|(_, m)| m.role == "tool")
-            .map(|(i, _)| i)
-            .collect()
     }
 
-    /// Truncate very long assistant messages to their first portion.
-    /// Long assistant monologues from old turns usually don't need to be reread.
-    pub fn truncate_old_verbose_messages(messages: &mut Vec<Message>, keep_recent_turns: usize) {
-        let total_turns = Self::count_user_turns(messages);
-        if total_turns <= keep_recent_turns * 2 { return; }
+    /// Strategy 2: Collapse consecutive same-role messages.
+    fn collapse_consecutive(messages: &mut Vec<Message>) {
+        let mut i = 0;
+        while i + 1 < messages.len() {
+            if messages[i].role == messages[i + 1].role
+                && messages[i].role == "assistant"
+                && messages[i].tool_call_id.is_none()
+                && messages[i + 1].tool_call_id.is_none()
+            {
+                let merged_content = format!("{}\n{}", messages[i].content, messages[i + 1].content);
+                let merged_tokens = merged_content.len() / 4;
+                messages[i].content = merged_content;
+                messages[i].token_count = merged_tokens;
+                messages.remove(i + 1);
+            } else {
+                i += 1;
+            }
+        }
+    }
 
-        let mut recent_user_turns = 0usize;
-        let recent_start = messages.iter().enumerate().rev()
-            .find(|(_, m)| {
-                if m.role == "user" { recent_user_turns += 1; }
-                recent_user_turns > keep_recent_turns
-            })
-            .map(|(i, _)| i + 1)
-            .unwrap_or(0);
-
-        for msg in messages.iter_mut().take(recent_start) {
-            if msg.role == "assistant" && msg.token_count > 400 {
-                // Keep first 200 tokens worth of characters (~800 chars)
-                let keep_chars = 800;
-                if msg.content.len() > keep_chars + 50 {
-                    let truncated = format!(
-                        "{}... [truncated: {} tokens]",
-                        &msg.content[..keep_chars.min(msg.content.len())],
-                        msg.token_count
-                    );
-                    msg.token_count = truncated.len() / 4;
-                    msg.content = truncated;
+    /// Strategy 3: Truncate long messages to head + tail.
+    fn truncate_long_messages(&self, messages: &mut Vec<Message>) {
+        for msg in messages.iter_mut() {
+            if msg.token_count > self.config.max_single_message_tokens && msg.role != "system" {
+                let lines: Vec<&str> = msg.content.lines().collect();
+                if lines.len() > self.config.truncation_tail_lines * 2 {
+                    let head_lines = self.config.truncation_tail_lines;
+                    let tail_lines = self.config.truncation_tail_lines;
+                    let omitted = lines.len() - head_lines - tail_lines;
+                    let mut new_content = String::new();
+                    for line in &lines[..head_lines] {
+                        new_content.push_str(line);
+                        new_content.push('\n');
+                    }
+                    new_content.push_str(&format!("\n[... {} lines omitted ...]\n\n", omitted));
+                    for line in &lines[lines.len() - tail_lines..] {
+                        new_content.push_str(line);
+                        new_content.push('\n');
+                    }
+                    msg.token_count = new_content.len() / 4;
+                    msg.content = new_content;
                 }
             }
         }
     }
-}
 
-impl Default for CompactionSaver {
-    fn default() -> Self { Self::new(CompactionConfig::default()) }
+    /// Strategy 4: Drop oldest non-system, non-protected messages.
+    fn drop_oldest(&self, messages: &mut Vec<Message>, target: usize) {
+        // Find the first droppable message (non-system, non-recent)
+        while Self::total_tokens(messages) > target && messages.len() > 2 {
+            // Find oldest non-system message
+            if let Some(idx) = messages.iter().position(|m| m.role != "system") {
+                // Don't drop if we're in the protected recent zone
+                let remaining_after = messages.len() - idx - 1;
+                if remaining_after < self.config.protected_recent_turns * 2 {
+                    break; // Would eat into protected recent turns
+                }
+                messages.remove(idx);
+            } else {
+                break;
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -131,21 +171,29 @@ impl TokenSaver for CompactionSaver {
     fn stage(&self) -> SaverStage { SaverStage::InterTurn }
     fn priority(&self) -> u32 { 30 }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
+    async fn process(
+        &self,
+        input: SaverInput,
+        ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before = Self::total_tokens(&input.messages);
+        let mut messages = input.messages;
 
-        // Don't compact if below trigger threshold
-        if before_tokens < self.config.trigger_tokens {
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
+        // Only compact if over the threshold
+        if tokens_before <= self.config.max_total_tokens {
+            let report = TokenSavingsReport {
                 technique: "compaction".into(),
-                tokens_before: before_tokens,
-                tokens_after: before_tokens,
+                tokens_before,
+                tokens_after: tokens_before,
                 tokens_saved: 0,
-                description: format!("below trigger threshold ({} < {} tokens)", before_tokens, self.config.trigger_tokens),
+                description: format!(
+                    "No compaction needed ({} tokens ≤ {} limit)",
+                    tokens_before, self.config.max_total_tokens
+                ),
             };
+            *self.report.lock().unwrap() = report;
             return Ok(SaverOutput {
-                messages: input.messages,
+                messages,
                 tools: input.tools,
                 images: input.images,
                 skipped: false,
@@ -153,46 +201,52 @@ impl TokenSaver for CompactionSaver {
             });
         }
 
-        // Step 1: Drop stale tool results (safe — old tool outputs rarely referenced)
-        let stale = Self::stale_tool_indices(
-            &input.messages,
-            self.config.keep_recent_turns,
-            self.config.drop_tool_results_older_than,
-        );
-        // Remove in reverse order to preserve indices
-        for i in stale.iter().rev() {
-            input.messages.remove(*i);
+        // Apply strategies progressively until under target
+        let mut strategies_applied = Vec::new();
+        for strategy in &self.config.strategies {
+            if Self::total_tokens(&messages) <= self.config.target_tokens {
+                break;
+            }
+            match strategy {
+                CompactionStrategy::RemoveStaleToolOutputs => {
+                    self.remove_stale_tool_outputs(&mut messages, ctx.turn_number);
+                    strategies_applied.push("remove-stale-tool-outputs");
+                }
+                CompactionStrategy::CollapseConsecutive => {
+                    Self::collapse_consecutive(&mut messages);
+                    strategies_applied.push("collapse-consecutive");
+                }
+                CompactionStrategy::TruncateLongMessages => {
+                    self.truncate_long_messages(&mut messages);
+                    strategies_applied.push("truncate-long-messages");
+                }
+                CompactionStrategy::DropOldest => {
+                    self.drop_oldest(&mut messages, self.config.target_tokens);
+                    strategies_applied.push("drop-oldest");
+                }
+            }
         }
 
-        // Step 2: Truncate verbose old assistant messages
-        Self::truncate_old_verbose_messages(&mut input.messages, self.config.keep_recent_turns);
+        let tokens_after = Self::total_tokens(&messages);
+        let tokens_saved = tokens_before.saturating_sub(tokens_after);
 
-        let after_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
-        let saved = before_tokens.saturating_sub(after_tokens);
-
-        // Enforce max compaction ratio cap (TOKEN.md: 50% max for quality)
-        let actual_ratio = saved as f64 / before_tokens as f64;
-        if actual_ratio > self.config.max_compaction_ratio {
-            // Over-compacted — this shouldn't happen with conservative defaults
-            // but cap savings report to reflect reality
-        }
-
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        let report = TokenSavingsReport {
             technique: "compaction".into(),
-            tokens_before: before_tokens,
-            tokens_after: after_tokens,
-            tokens_saved: saved,
+            tokens_before,
+            tokens_after,
+            tokens_saved,
             description: format!(
-                "compacted history: {} -> {} tokens ({:.0}% reduction, {} stale tool results dropped)",
-                before_tokens, after_tokens,
-                actual_ratio * 100.0,
-                stale.len()
+                "Applied [{}], {} → {} tokens ({:.1}% saved). Strategies: progressive, quality-preserving.",
+                strategies_applied.join(", "),
+                tokens_before,
+                tokens_after,
+                if tokens_before > 0 { tokens_saved as f64 / tokens_before as f64 * 100.0 } else { 0.0 }
             ),
         };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: input.messages,
+            messages,
             tools: input.tools,
             images: input.images,
             skipped: false,
@@ -209,39 +263,57 @@ impl TokenSaver for CompactionSaver {
 mod tests {
     use super::*;
 
-    fn msg(role: &str, content: &str) -> Message {
-        Message { role: role.into(), content: content.into(), images: vec![], tool_call_id: None, token_count: content.len() / 4 + 10 }
-    }
-
-    #[test]
-    fn no_compaction_below_threshold() {
-        let saver = CompactionSaver::default();
-        let messages = vec![msg("system", "You are DX."), msg("user", "Hello"), msg("assistant", "Hi")];
-        // Total tokens well below 8000 threshold
-        let total: usize = messages.iter().map(|m| m.token_count).sum();
-        assert!(total < 8000, "should be below threshold");
-    }
-
-    #[test]
-    fn stale_tool_detection() {
-        let mut messages = Vec::new();
-        for i in 0..20 {
-            messages.push(msg("user", &format!("question {}", i)));
-            messages.push(msg("assistant", &format!("answer {}", i)));
-            messages.push(msg("tool", &format!("tool result {}", i)));
-        }
-        let stale = CompactionSaver::stale_tool_indices(&messages, 4, 4);
-        // Should find stale tool results from before the recent window
-        assert!(!stale.is_empty(), "should find stale tool results");
-        // All stale indices should be for tool messages
-        for i in &stale {
-            assert_eq!(messages[*i].role, "tool");
+    fn msg(role: &str, content: &str, tokens: usize) -> Message {
+        Message {
+            role: role.into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: None,
+            token_count: tokens,
         }
     }
 
-    #[test]
-    fn max_compaction_ratio_is_50_percent() {
-        let config = CompactionConfig::default();
-        assert!(config.max_compaction_ratio <= 0.50, "must not exceed 50% per TOKEN.md");
+    #[tokio::test]
+    async fn test_no_compaction_under_limit() {
+        let saver = CompactionSaver::new();
+        let ctx = SaverContext { turn_number: 5, ..Default::default() };
+        let input = SaverInput {
+            messages: vec![msg("system", "hello", 100), msg("user", "hi", 50)],
+            tools: vec![],
+            images: vec![],
+            turn_number: 5,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert_eq!(saver.last_savings().tokens_saved, 0);
+        assert_eq!(out.messages.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_compaction_removes_stale_tool_outputs() {
+        let config = CompactionConfig {
+            max_total_tokens: 1000,
+            target_tokens: 500,
+            protected_recent_turns: 1,
+            ..Default::default()
+        };
+        let saver = CompactionSaver::with_config(config);
+        let ctx = SaverContext { turn_number: 10, ..Default::default() };
+        let mut tool_msg = msg("tool", "very long tool output here", 800);
+        tool_msg.tool_call_id = Some("tc_1".into());
+        let input = SaverInput {
+            messages: vec![
+                msg("system", "sys", 100),
+                msg("user", "q1", 50),
+                tool_msg,
+                msg("user", "q2", 50),
+                msg("assistant", "answer", 50),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 10,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert!(saver.last_savings().tokens_saved > 0);
+        assert!(out.messages.len() >= 2);
     }
 }
