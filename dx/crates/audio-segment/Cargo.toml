@@ -8,3 +8,6 @@ description = "Silence removal from audio — 40% savings by trimming dead air"
 dx-core = { workspace = true }
 async-trait = { workspace = true }
 audio-compress = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

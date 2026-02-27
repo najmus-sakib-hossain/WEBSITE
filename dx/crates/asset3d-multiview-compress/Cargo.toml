@@ -7,3 +7,6 @@ description = "Multi-view 3D asset compression — minimize viewpoint redundancy
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

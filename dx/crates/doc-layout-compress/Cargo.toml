@@ -8,3 +8,6 @@ description = "Layout-aware document compression — structure + content optimiz
 dx-core = { workspace = true }
 async-trait = { workspace = true }
 regex-lite = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -8,3 +8,6 @@ description = "ToMe-style temporal token merging for video — reduces per-frame
 dx-core = { workspace = true }
 async-trait = { workspace = true }
 image = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

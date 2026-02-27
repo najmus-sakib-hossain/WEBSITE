@@ -186,7 +186,7 @@ impl TokenSaver for TokenBudgetSaver {
                 let msg_budget = budget.saturating_sub(total_tool_tokens + total_image_tokens);
                 let removed = Self::truncate_to_budget(&mut messages, msg_budget);
                 tokens_saved = removed;
-                let tokens_after: usize = messages.iter().map(|m| m.token_count).sum()
+                let tokens_after: usize = messages.iter().map(|m| m.token_count).sum::<usize>()
                     + total_tool_tokens + total_image_tokens;
                 description = format!(
                     "BUDGET ENFORCED: {} → {} tokens. Removed {} tokens of oldest messages. \

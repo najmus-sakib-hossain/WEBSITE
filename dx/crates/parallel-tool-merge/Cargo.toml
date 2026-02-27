@@ -7,3 +7,6 @@ description = "Merge parallel tool results — 10-30% savings on tool message ov
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

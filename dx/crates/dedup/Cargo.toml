@@ -8,3 +8,6 @@ description = "Duplicate tool output elimination — 20-50% savings in multi-tur
 dx-core = { workspace = true }
 blake3 = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

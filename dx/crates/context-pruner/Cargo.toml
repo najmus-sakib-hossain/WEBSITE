@@ -8,3 +8,6 @@ description = "Prune stale context — 20-40% savings on multi-turn conversation
 dx-core = { workspace = true }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

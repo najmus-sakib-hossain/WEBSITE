@@ -57,7 +57,7 @@ impl LiveFrameDedup {
             return 1.0; // Different sizes = different frames
         }
         let diff_count = a.iter().zip(b.iter())
-            .filter(|(x, y)| (*x as i16 - *y as i16).unsigned_abs() > 10)
+            .filter(|(x, y)| (**x as i16 - **y as i16).unsigned_abs() > 10)
             .count();
         diff_count as f64 / a.len() as f64
     }

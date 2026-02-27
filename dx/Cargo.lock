@@ -76,6 +76,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -84,6 +85,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -92,6 +94,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -113,6 +116,7 @@ dependencies = [
  "dx-core",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -122,6 +126,7 @@ dependencies = [
  "async-trait",
  "audio-compress",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -190,6 +195,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -289,6 +295,7 @@ dependencies = [
  "dx-core",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -304,6 +311,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -348,6 +356,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -397,6 +406,7 @@ dependencies = [
  "async-trait",
  "blake3",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -406,6 +416,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "regex-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -430,6 +441,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -577,6 +589,7 @@ dependencies = [
  "blake3",
  "dx-core",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -617,6 +630,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -757,6 +771,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -767,6 +782,7 @@ dependencies = [
  "blake3",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -775,6 +791,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -784,6 +801,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -880,6 +898,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -974,6 +993,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -982,6 +1002,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1026,6 +1047,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "similar",
+ "tokio",
 ]
 
 [[package]]
@@ -1035,6 +1057,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -1044,6 +1067,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -1052,6 +1076,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1103,6 +1128,7 @@ dependencies = [
  "dx-core",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1296,6 +1322,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1333,6 +1360,7 @@ dependencies = [
  "semantic-cache",
  "serde",
  "serde_json",
+ "tokio",
  "zstd",
 ]
 
@@ -1342,6 +1370,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1373,6 +1402,7 @@ dependencies = [
  "dx-core",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1392,6 +1422,7 @@ dependencies = [
  "regex-lite",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1569,6 +1600,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1605,6 +1637,8 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1647,6 +1681,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "tokio",
 ]
 
 [[package]]
@@ -1656,6 +1691,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -1665,6 +1701,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "image",
+ "tokio",
 ]
 
 [[package]]
@@ -1802,6 +1839,7 @@ dependencies = [
  "async-trait",
  "dx-core",
  "regex-lite",
+ "tokio",
 ]
 
 [[package]]

@@ -164,8 +164,8 @@ impl OcrExtractSaver {
                 OcrResult::ReplaceWithText {
                     text,
                     text_tokens,
-                    image_tokens_saved: img.original_tokens,
-                    content_type,
+                    _image_tokens_saved: img.original_tokens,
+                    _content_type: content_type,
                 }
             }
         }
@@ -177,8 +177,8 @@ enum OcrResult {
     ReplaceWithText {
         text: String,
         text_tokens: usize,
-        image_tokens_saved: usize,
-        content_type: ImageContentType,
+        _image_tokens_saved: usize,
+        _content_type: ImageContentType,
     },
 }
 

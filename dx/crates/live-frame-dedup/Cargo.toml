@@ -9,3 +9,6 @@ dx-core = { workspace = true }
 image = { workspace = true }
 blake3 = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

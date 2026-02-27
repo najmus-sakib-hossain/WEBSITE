@@ -13,7 +13,6 @@
 //! STAGE: CallElimination (priority 1)
 
 use dx_core::*;
-use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -186,6 +185,7 @@ impl SemanticCacheSaver {
 
         let mut cache = self.cache.lock().unwrap();
         let mut best_match: Option<(usize, f64)> = None;
+        let mut exact_match_idx: Option<usize> = None;
 
         for (i, entry) in cache.iter().enumerate() {
             // Skip expired
@@ -200,8 +200,8 @@ impl SemanticCacheSaver {
 
             // Check exact match first (fast path)
             if entry.query == normalized {
-                cache[i].hit_count += 1;
-                return Some((entry.response.clone(), 1.0));
+                exact_match_idx = Some(i);
+                break;
             }
 
             // Jaccard similarity
@@ -211,6 +211,12 @@ impl SemanticCacheSaver {
                     best_match = Some((i, sim));
                 }
             }
+        }
+
+        if let Some(idx) = exact_match_idx {
+            cache[idx].hit_count += 1;
+            let response = cache[idx].response.clone();
+            return Some((response, 1.0));
         }
 
         if let Some((idx, sim)) = best_match {

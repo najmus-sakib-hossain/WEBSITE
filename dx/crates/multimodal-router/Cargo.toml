@@ -7,3 +7,6 @@ description = "Routes each modality to cheapest representation available"
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

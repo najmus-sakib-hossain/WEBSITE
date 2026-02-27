@@ -8,3 +8,6 @@ description = "DocOwl2-style PDF page compression to ~324 tokens per page"
 dx-core = { workspace = true }
 image = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -7,3 +7,6 @@ description = "PDF text extraction — bypasses image-based tokens entirely"
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -7,3 +7,6 @@ description = "Hierarchical event segmentation for live streams"
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

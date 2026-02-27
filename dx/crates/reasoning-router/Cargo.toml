@@ -7,3 +7,6 @@ description = "Routes tasks to appropriate reasoning effort — 30-80% reasoning
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
