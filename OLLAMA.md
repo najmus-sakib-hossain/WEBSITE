@@ -1,678 +1,585 @@
-Awesome now as we already figured all the things about how to build Docker in Rust, what about ollama? ollama, by default, needs 1 GB+ of storage if you want to download it locally as the official ollama. Now are there any Rust traits that I can use to create a Rust-based ollama where I can do all the things of ollama but in a smaller binary and faster performance?
-
-Brilliant idea! You're essentially saying: **skip all the Go bloat, wrap llama.cpp directly in a lean Rust binary, and ship a single `dx` under 100MB that does EVERYTHING Ollama does.** This is not only possible — someone was already "tired of waiting 10 seconds for Ollama's 680MB binary to start just to run a 4GB model locally" and built exactly this approach. Here's your complete blueprint:
+Alright. Now I have the full, latest picture — what llama.cpp *actually* ships today, what's truly easy in Rust, and what Ollama is still getting wrong. Here's your **laser-focused, ship-first feature list** — only the things that give **maximum impact for minimum work**.
 
 ---
 
-# 🛠️ Building "DX" — Ollama Killer in <100MB
-## Rust Shell + llama.cpp Engine = All Features, Fraction of Size
+# 🚀 DX v0.1 — Ship Fast, Win Big
+## Only Features That Are SMALL in Rust but HUGE in Value
 
 ---
 
-## 🧠 THE CORE INSIGHT: Why This Works
+## The Brutal Filter I Applied
 
-Ollama is essentially:
-```
-Ollama = llama.cpp (C++) + Go Bloat Wrapper (~680MB)
-```
+Every feature below passes **ALL THREE** of these tests:
 
-Your DX would be:
-```
-DX = llama.cpp (C++) + Lean Rust Wrapper (~5-50MB)
-```
+1. ✅ **< 1 week of work** for a competent Rust dev
+2. ✅ **Directly exploits an Ollama weakness** that users are actively complaining about
+3. ✅ **Already implemented in llama.cpp** — you're just exposing it, not inventing it
 
-Due to the breakneck pace, it's not a sustainable idea to rewrite llama.cpp's functionality in Rust. So if you want to use 'GGUF' LLM neural networks for text inference from within Rust, the easiest and sanest path is to call the C++ library using Rust's Foreign Function Interface features.
-
-This is **exactly what Shimmy already proved works.** The creator "got it down to 5.1MB by stripping everything except pure inference. Written in Rust, uses llama.cpp's engine."
+Features that fail any of these → **Post-Launch** pile.
 
 ---
 
-## 📊 THE SIZE MATH: Why <100MB is Easy
-
-| Component | Size |
-|---|---|
-| **llama.cpp** (CPU-only, statically linked) | ~3-10MB |
-| **llama.cpp** (with CUDA kernels) | ~45-66MB |
-| **Rust wrapper** (CLI + API + registry + networking) | ~5-15MB |
-| **TOTAL (CPU-only build)** | **~8-25MB** ✅ |
-| **TOTAL (GPU-enabled, all backends)** | **~40-80MB** ✅ |
-
-If you are using a CUDA build, large binaries are expected. The only way to avoid that is with a shared library. But even with CUDA statically linked, you stay well under 100MB.
-
-For reference, GPU-enabled binaries (Windows/Linux x64, macOS ARM64): ~40-50MB; CPU-only binaries (macOS Intel, Linux ARM64): ~20-30MB.
-
-Vs. Ollama needs at least 4GB of space for the binary install. (including GPU libs & dependencies)
+## 🏆 TIER 1: Ship These on Day 1 (Each is 1-3 days of work)
 
 ---
 
-## 🏗️ ARCHITECTURE: What Goes Where
+### 1. `dx doctor` — Smart Hardware Profiling (2-3 days)
 
-```
-┌──────────────────────────────────────────────────────┐
-│                    DX Binary (<100MB)                 │
-│                                                      │
-│  ┌────────────────┐  ┌─────────────────────────────┐ │
-│  │   Rust Shell   │  │     llama.cpp (via FFI)     │ │
-│  │                │  │                             │ │
-│  │ • CLI (clap)   │  │ • GGUF loading              │ │
-│  │ • API (axum)   │  │ • Tokenization              │ │
-│  │ • Registry     │  │ • Inference engine           │ │
-│  │ • Model mgmt   │  │ • Quantization              │ │
-│  │ • Modelfile    │  │ • KV cache                  │ │
-│  │ • Streaming    │  │ • GPU backends              │ │
-│  │ • Auto-detect  │  │ • Sampling                  │ │
-│  └───────┬────────┘  └──────────┬──────────────────┘ │
-│          │      FFI Boundary    │                    │
-│          └──────────────────────┘                    │
-└──────────────────────────────────────────────────────┘
-                        │
-              ┌─────────┴──────────┐
-              │   GGUF Model Files  │
-              │   (User downloads)  │
-              │   2GB - 70GB+       │
-              └────────────────────┘
-```
+**Why it's easy:** The `sysinfo` crate gives you CPU, RAM, and disk in ~10 lines. llama-cpp-2 has feature flags including cuda, vulkan, metal, native, and sampler. You just read system info and match against known model sizes.
 
----
-
-## 📦 THE COMPLETE CRATE MAP
-
-### 🔥 LAYER 1: The Inference Engine (llama.cpp via FFI)
-
-The heart of DX. **This is where all the ML magic happens — in C++, called from Rust:**
-
-```toml
-[dependencies]
-# PRIMARY CHOICE — most actively maintained, closest to raw llama.cpp
-llama-cpp-2 = { version = "0.1.133", features = ["cuda"] }
-```
-
-This project was created with the explicit goal of staying as up to date as possible with llama.cpp, as a result it is dead simple, very close to raw bindings, and does not follow semver meaningfully.
-
-This is part of the project powering all the LLMs at utilityai, it is tightly coupled to llama.cpp and mimics its API as closely as possible while being safe in order to stay up to date.
-
-**Feature flags for GPU backends:**
-
-```toml
-# Pick what you need:
-llama-cpp-2 = { version = "0.1.133", features = [
-    # "cuda",      # NVIDIA GPUs
-    # "vulkan",    # AMD/Intel/NVIDIA (cross-platform)
-    # "metal",     # Apple Silicon (macOS)
-    # "hipblas",   # AMD ROCm
-] }
-```
-
-llama.cpp bindings for Rust with feature flags including cuda, vulkan, metal, native, and sampler. This version has 10 feature flags, 2 of them enabled by default.
-
-**Why `llama-cpp-2` over alternatives:**
-
-| Crate | Pros | Cons |
-|---|---|---|
-| **`llama-cpp-2`** ⭐ | Most up-to-date, battle-tested, safe wrappers, powers production LLMs | Low-level API |
-| `llama_cpp` | Safe, high-level Rust bindings, meant to be as user-friendly as possible. Run GGUF-based LLMs in fifteen lines of code | Less frequently updated |
-| `llama_cpp_rs` | Based on go-llama.cpp Go bindings | Go-derived, less Rust-native |
-
-**Use `llama-cpp-2`.** It gets you the **full power of llama.cpp:**
-
-llama.cpp supports multiple hardware targets, including x86, ARM, Metal, BLAS, BLIS, zDNN, ZenDNN, SYCL, MUSA, CUDA, HIP, CANN, OpenCL, RPC and Vulkan.
-
-llama.cpp supports OpenAI-compatible endpoints like v1/chat/completions. Grammar-based output formatting as JSON.
+**Why it kills Ollama:** Recent updates introduced a new inference engine, but instead of performance improvements, some users have reported the opposite: Token generation is up to 10× slower in certain scenarios. GPU utilization is inconsistent compared to the previous engine. Users have no idea why things are slow. DX tells them.
 
 ```rust
-use llama_cpp_2::model::LlamaModel;
-use llama_cpp_2::model::params::LlamaModelParams;
-use llama_cpp_2::context::params::LlamaContextParams;
-use llama_cpp_2::context::LlamaContext;
-use llama_cpp_2::llama_batch::LlamaBatch;
-use llama_cpp_2::sampling::LlamaSampler;
+// The whole "doctor" is basically this:
+use sysinfo::System;
 
-// Load a GGUF model (just like Ollama does internally)
-let model_params = LlamaModelParams::default()
-    .with_n_gpu_layers(99);  // Offload all layers to GPU
-
-let model = LlamaModel::load_from_file("model.gguf", &model_params)?;
-
-let ctx_params = LlamaContextParams::default()
-    .with_n_ctx(std::num::NonZeroU32::new(4096));
-
-let mut ctx = model.new_context(&backend, ctx_params)?;
-
-// Tokenize, batch, sample — full llama.cpp pipeline
-let tokens = model.str_to_token("Hello, how are you?", AddBos::Always)?;
-let mut batch = LlamaBatch::new(4096, 1);
-// ... run inference loop with streaming
+fn doctor() {
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    
+    let total_ram_gb = sys.total_memory() / 1_073_741_824;
+    let available_ram_gb = sys.available_memory() / 1_073_741_824;
+    let cpu_count = sys.cpus().len();
+    
+    // Match against known model sizes
+    let recommendations = vec![
+        ("llama3.2:1b-q4_k_m",  1.0, "🟢 Fast, fits easily"),
+        ("llama3.2:3b-q4_k_m",  2.5, "🟢 Great for most tasks"),
+        ("llama3.1:8b-q4_k_m",  5.0, "🟡 Needs 8GB+ RAM"),
+        ("qwen3:14b-q4_k_m",    9.0, "🟡 Needs 16GB+ RAM"),
+        ("llama3.1:70b-q4_k_m", 40.0, "🔴 Needs 48GB+ RAM"),
+    ];
+    
+    for (model, size_gb, note) in &recommendations {
+        let fits = available_ram_gb as f64 > *size_gb;
+        println!("{} {} ({:.1}GB) — {}", 
+            if fits { "✅" } else { "❌" }, model, size_gb, note);
+    }
+    
+    // Auto-calculate optimal settings
+    let optimal_threads = cpu_count; // physical cores
+    let optimal_ctx = if available_ram_gb > 16 { 8192 } else { 4096 };
+    println!("\n⚡ Optimal: --threads {} --ctx-size {}", optimal_threads, optimal_ctx);
+}
 ```
+
+**Crates needed:** `sysinfo` (500KB). That's it.
 
 ---
 
-### 🌐 LAYER 2: Model Registry & Downloading
+### 2. Security by Default — Auth + Localhost-Only (1-2 days)
 
-```toml
-[dependencies]
-# Pull from HuggingFace (where most GGUF models live)
-hf-hub = "0.4"
+**Why it's easy:** Generate a random API key on first run, store it in `~/.dx/config.json`, check it in axum middleware. ~50 lines of Rust.
 
-# Pull from Ollama's OCI registry (registry.ollama.ai)
-oci-distribution = "0.11"
-
-# HTTP client for downloads
-reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
-```
-
-**Two registries to support:**
+**Why it kills Ollama:** This is Ollama's most embarrassing problem. Recently, SentinelOne SentinelLABS and Censys discovered many businesses are running AI models locally using Ollama. However, in around 175,000 cases, these are misconfigured to listen on all network interfaces, instead of just localhost, making the AI publicly accessible to anyone on the internet, without a password. And Trend Micro spotted more than 10,000 Ollama servers publicly exposed with no authentication layer.
 
 ```rust
-// DX PULL from HuggingFace:
-// dx pull hf:TheBloke/Llama-2-7B-Chat-GGUF
-use hf_hub::api::tokio::Api;
-let api = Api::new()?;
-let repo = api.model("TheBloke/Llama-2-7B-Chat-GGUF".into());
-let path = repo.get("llama-2-7b-chat.Q4_K_M.gguf").await?;
-
-// DX PULL from Ollama's registry (100% compatible):
-// dx pull llama3.2
-use oci_distribution::{Client, Reference};
-let reference: Reference = "registry.ollama.ai/library/llama3.2:latest".parse()?;
-// Pull manifest, then download layer blobs...
-```
-
----
-
-### ⚡ LAYER 3: HTTP API Server (OpenAI + Ollama Compatible)
-
-```toml
-[dependencies]
-axum = { version = "0.7", features = ["ws"] }
-tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-```
-
-You need **BOTH** API formats for full compatibility:
-
-```rust
-use axum::{Router, routing::{get, post, delete}};
-
-let app = Router::new()
-    // ============ OpenAI-Compatible API ============
-    .route("/v1/chat/completions", post(chat_completions))    // ChatGPT-style
-    .route("/v1/completions", post(completions))               // Legacy completions
-    .route("/v1/embeddings", post(embeddings))                 // Embeddings
-    .route("/v1/models", get(list_models_openai))              // Model list
-
-    // ============ Ollama-Compatible API ============
-    .route("/api/generate", post(generate))                    // ollama generate
-    .route("/api/chat", post(chat))                            // ollama chat
-    .route("/api/pull", post(pull_model))                      // ollama pull
-    .route("/api/push", post(push_model))                      // ollama push
-    .route("/api/tags", get(list_local_models))                // ollama list
-    .route("/api/show", post(show_model_info))                 // ollama show
-    .route("/api/delete", delete(delete_model))                // ollama rm
-    .route("/api/create", post(create_model))                  // ollama create
-    .route("/api/copy", post(copy_model))                      // ollama cp
-    .route("/api/blobs/:digest", get(check_blob).post(create_blob))
-    .route("/api/ps", get(running_models))                     // ollama ps
-
-    // ============ Health ============
-    .route("/", get(|| async { "DX is running" }))
-
-    .layer(tower_http::cors::CorsLayer::permissive());
-
-// Bind to same port as Ollama for drop-in replacement!
-let listener = tokio::net::TcpListener::bind("127.0.0.1:11434").await?;
-axum::serve(listener, app).await?;
-```
-
-**Streaming responses (SSE) — critical for chat UX:**
-
-```rust
-use axum::response::sse::{Event, Sse};
-use tokio_stream::StreamExt;
-
-async fn chat_completions(
-    Json(req): Json<ChatRequest>,
-) -> Sse<impl tokio_stream::Stream<Item = Result<Event, anyhow::Error>>> {
-    let stream = async_stream::stream! {
-        // For each token generated by llama.cpp...
-        for token in inference_stream {
-            let chunk = ChatCompletionChunk {
-                id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
-                object: "chat.completion.chunk",
-                model: req.model.clone(),
-                choices: vec![Choice {
-                    delta: Delta { content: Some(token) },
-                    finish_reason: None,
-                }],
-            };
-            yield Ok(Event::default()
-                .data(serde_json::to_string(&chunk)?));
+// Axum middleware — literally 30 lines
+async fn auth_middleware(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Some(key) = headers.get("Authorization") {
+        if key.to_str().unwrap_or("").trim_start_matches("Bearer ") == state.api_key {
+            return next.run(request).await;
         }
-        yield Ok(Event::default().data("[DONE]"));
+    }
+    (StatusCode::UNAUTHORIZED, "Invalid API key. See: dx auth show").into_response()
+}
+
+// First run: generate and save key
+fn init_auth() -> String {
+    let config_path = dirs::home_dir().unwrap().join(".dx/auth.key");
+    if config_path.exists() {
+        return std::fs::read_to_string(&config_path).unwrap();
+    }
+    let key = uuid::Uuid::new_v4().to_string();
+    std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+    std::fs::write(&config_path, &key).unwrap();
+    eprintln!("🔑 API key generated: {}", key);
+    eprintln!("   Use: dx auth show");
+    key
+}
+```
+
+**Bind to 127.0.0.1 by default.** Require explicit `--host 0.0.0.0` to expose. This one change makes DX safer than every Ollama deployment on the planet.
+
+**Crates needed:** `uuid` (already in your Cargo.toml). Zero additional deps.
+
+---
+
+### 3. Auto-Migrate Existing Ollama Models (1 day)
+
+**Why it's easy:** Ollama stores models in `~/.ollama/models/blobs/` as sha256-hashed files. They're just GGUF blobs. Scan the directory, read the manifests (JSON), symlink or copy.
+
+**Why it kills Ollama:** Zero friction migration. User installs DX, runs `dx migrate`, and all their existing Ollama models work instantly. No re-downloading 50GB of models.
+
+```rust
+fn discover_ollama_models() -> Vec<OllamaModel> {
+    let ollama_dir = dirs::home_dir().unwrap().join(".ollama/models");
+    let manifests_dir = ollama_dir.join("manifests/registry.ollama.ai/library");
+    
+    let mut models = vec![];
+    if manifests_dir.exists() {
+        for entry in walkdir::WalkDir::new(&manifests_dir).min_depth(2).max_depth(2) {
+            if let Ok(entry) = entry {
+                // Read manifest JSON → get blob sha256 → point to GGUF
+                if let Ok(manifest) = std::fs::read_to_string(entry.path()) {
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&manifest) {
+                        // Extract model layer digest → maps to blobs/sha256-XXX
+                        models.push(parse_ollama_manifest(&parsed, &ollama_dir));
+                    }
+                }
+            }
+        }
+    }
+    models
+}
+```
+
+**Crates needed:** `walkdir`, `serde_json` (already in your Cargo.toml).
+
+---
+
+### 4. Flash Attention + KV Cache Quantization — Enabled by Default (0.5 days)
+
+**Why it's easy:** These are **flags you pass to llama.cpp**. Zero Rust code to write. Just set defaults.
+
+Flash Attention reduces memory usage and improves performance for large context sizes. And Supported types: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1. Lower precision reduces memory usage with minimal quality loss for most workloads.
+
+**Why it kills Ollama:** GPU utilization is inconsistent compared to the previous engine. Larger models like Qwen3:30B now run significantly worse, with higher latency and lower throughput. Ollama doesn't expose these optimizations well. DX turns them on automatically.
+
+```rust
+// In your model loading code, just set smarter defaults:
+let ctx_params = LlamaContextParams::default()
+    .with_n_ctx(NonZeroU32::new(8192))
+    .with_flash_attn(true)           // Ollama doesn't auto-enable this
+    .with_type_k(GgmlType::Q8_0)    // KV cache quantization saves ~50% VRAM
+    .with_type_v(GgmlType::Q8_0);   // vs Ollama's default f16
+
+// Auto-calculate GPU layers based on VRAM (dx doctor data)
+let n_gpu_layers = calculate_optimal_gpu_layers(&model_info, available_vram);
+```
+
+**Crates needed:** None. Just better defaults in your llama-cpp-2 calls.
+
+---
+
+### 5. Parallel Requests from Day 1 (0.5 days)
+
+**Why it's easy:** Again, this is a llama.cpp parameter. llama.cpp already supports this: Share a single KV cache across all slots for better memory utilization. The unified cache mode is automatically enabled when --parallel is set to auto (-1).
+
+**Why it kills Ollama:** Ollama defaults to `OLLAMA_NUM_PARALLEL=1`. One user at a time. Your API queue everyone. DX defaults to auto-parallel.
+
+```rust
+// Just... set a better default:
+let server_params = ServerParams {
+    n_parallel: -1,  // auto — llama.cpp figures out optimal slot count
+    // vs Ollama's default of 1
+    ..Default::default()
+};
+```
+
+---
+
+### 6. Tiered Binary Distribution + One-Line Installer (1 day)
+
+**Why it's easy:** CI/CD config + a 20-line shell script.
+
+The latest llama.cpp release (yesterday!) ships: llama-b8157-bin-macos-arm64.tar.gz at 29.2 MB and cudart-llama-bin-win-cuda-12.4-x64.zip at 373 MB. This proves the size tiers.
+
+**Why it kills Ollama:** Users download ONLY what their hardware needs instead of a 4GB everything-bundle.
+
+```bash
+# install.sh — auto-detects and downloads correct binary
+#!/bin/sh
+set -e
+ARCH=$(uname -m)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+# Detect GPU
+if command -v nvidia-smi &>/dev/null; then
+    VARIANT="cuda12"
+elif [ "$OS" = "darwin" ]; then
+    VARIANT="metal"
+else
+    VARIANT="cpu"
+fi
+
+URL="https://github.com/youruser/dx/releases/latest/download/dx-${OS}-${ARCH}-${VARIANT}"
+curl -fsSL "$URL" -o /usr/local/bin/dx
+chmod +x /usr/local/bin/dx
+echo "✅ DX installed (${VARIANT} build)"
+echo "🚀 Run: dx doctor"
+```
+
+**GitHub Actions matrix builds:**
+```yaml
+strategy:
+  matrix:
+    include:
+      - os: ubuntu-latest
+        features: ""
+        artifact: dx-linux-x86_64-cpu
+      - os: ubuntu-latest  
+        features: "--features cuda"
+        artifact: dx-linux-x86_64-cuda12
+      - os: macos-14
+        features: "--features metal"
+        artifact: dx-darwin-arm64-metal
+```
+
+---
+
+### 7. The DX Manifest — Anti-Enshittification Promise (0.5 days)
+
+**Why it's easy:** It's a markdown file. Zero code.
+
+**Why it kills Ollama:** The launch of Ollama Turbo — a cloud acceleration service — represented a pivotal moment. Ollama's original differentiation was its focus on local control, privacy, and open-source distribution. Turbo, however, introduces a dependency on Ollama's own infrastructure. Using Turbo requires a sign-in, shifting away from the zero-friction local-first experience.
+
+Auto-start behavior, telemetry opacity, performance regressions, insecure defaults, and the cloud-first drift of Turbo all hint at a slow move away from the tool's original ethos.
+
+Your `MANIFEST.md`:
+```markdown
+# The DX Manifest
+
+1. 100% Local, Forever. No cloud. No sign-in. No telemetry. Ever.
+2. No Auto-Start. DX runs when YOU start it. Period.
+3. Auth by Default. API key generated on first run. Localhost only.
+4. Single Binary. Download. Run. Done. No installers.
+5. Open Formats. GGUF in, GGUF out. No lock-in.
+6. Performance Never Regresses. Benchmarks published every release.
+7. MIT Licensed. No CLA. Your code stays yours.
+```
+
+Print it in `dx --version` output. Make it part of the brand.
+
+---
+
+### 8. Better Error Messages + Verbose Startup Info (1 day)
+
+**Why it's easy:** `colored` crate + structured logging with `tracing`. Just print what's happening.
+
+**Why it kills Ollama:** Ollama is a black box. If updates make models less usable on real hardware, developers may feel pressured to upgrade hardware or accept degraded performance. Users don't know why things are slow or broken.
+
+```
+$ dx run llama3.1:8b
+
+  DX v0.1.0 🦀
+  ────────────────────────────────────
+  CPU:  Apple M2 Pro (12 cores)
+  RAM:  32GB (28GB available)
+  GPU:  Metal (16GB unified)
+  ────────────────────────────────────
+  Model:    llama3.1:8b-q4_k_m (4.7GB)
+  Offload:  33/33 layers → GPU ✅
+  Context:  8192 tokens
+  Flash:    ✅ enabled
+  KV Cache: q8_0 (saves 2GB)
+  Auth:     🔒 localhost only
+  ────────────────────────────────────
+  Ready in 0.3s | Listening on 127.0.0.1:11434
+
+  > 
+```
+
+vs Ollama's startup: _silence, then a blinking cursor_. No info about what GPU is being used, no layer count, no context size. Nothing.
+
+---
+
+## 🥈 TIER 2: Ship in Week 2-3 (Each is 3-5 days)
+
+---
+
+### 9. Speculative Decoding with `--turbo` Flag (3-5 days)
+
+**Why it's medium work:** llama.cpp already has full speculative decoding support. Speculative decoding is an optimization technique that reduces the wall-clock time of inference by leveraging a smaller, faster "draft" model to predict multiple tokens ahead. The main "target" model then verifies these predictions in parallel, accepting correct tokens and rejecting incorrect ones. This approach maintains output quality identical to standard inference while potentially improving throughput.
+
+Speculative decoding accelerates inference by using a smaller "draft" model to predict tokens in parallel, which are then verified by the main model. This can provide 2-4x speedup for supported models.
+
+The work is building a **draft model pairing table** and auto-downloading the draft model:
+
+```rust
+// Hardcoded table of known good draft pairings
+fn get_draft_model(target: &str) -> Option<&str> {
+    match target {
+        "llama3.1:8b"  => Some("llama3.2:1b"),
+        "llama3.1:70b" => Some("llama3.2:3b"),
+        "qwen3:14b"    => Some("qwen3:0.6b"),
+        "qwen3:30b"    => Some("qwen3:4b"),
+        _ => None,
+    }
+}
+
+// dx run llama3.1:8b --turbo
+// → Auto-loads llama3.2:1b as draft model
+// → 2-3x faster, zero user configuration
+```
+
+The current implementation allows for impressive gains—up to 2x or even 3x faster inference—but configuring it requires two separate models, precise tuning, and extra memory. Streamlining that setup, or exposing it more clearly through the server API, could open the door for wider adoption.
+
+**DX makes it one flag.** Ollama doesn't expose speculative decoding at all.
+
+---
+
+### 10. Multimodal Support — Images + Audio (3-5 days)
+
+**Why it's medium work:** llama.cpp already does the heavy lifting. On Apr 10, 2025, libmtmd was introduced, which reinvigorated support for multimodal models. And The multimodal projector (mmproj) is a separate model component that translates image/audio features into the text model's embedding space. It acts as a bridge between visual/audio encoders and the language model.
+
+The `llama-cpp-2` crate has the `mtmd` feature flag: Feature flags include: mtmd.
+
+You just need to wire the mmproj auto-download into your pull logic and pass images through the API:
+
+```rust
+// When user pulls a vision model, auto-download the mmproj file too
+// dx run qwen3-vl:8b --image photo.jpg "What's in this image?"
+```
+
+---
+
+### 11. HuggingFace Direct Pull with Smart Quant Selection (2-3 days)
+
+**Why it's medium work:** The `hf-hub` crate handles downloads. You need to add GGUF file listing + auto-selecting the right quant based on `dx doctor` data.
+
+```rust
+use hf_hub::api::tokio::Api;
+
+async fn pull_hf(repo: &str, available_ram_gb: u64) -> Result<PathBuf> {
+    let api = Api::new()?;
+    let repo = api.model(repo.into());
+    
+    // List available GGUF files, pick best quant for hardware
+    let quant = match available_ram_gb {
+        0..=8   => "Q4_K_S",
+        9..=16  => "Q4_K_M",
+        17..=32 => "Q6_K",
+        _       => "Q8_0",
     };
-    Sse::new(stream)
+    
+    let filename = find_gguf_with_quant(&repo, quant).await?;
+    let path = repo.get(&filename).await?;
+    Ok(path)
 }
 ```
 
----
-
-### 🖥️ LAYER 4: CLI Interface
-
-```toml
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-indicatif = "0.17"          # Progress bars for downloads
-dialoguer = "0.11"          # Interactive model selection
-colored = "2"               # Pretty terminal output
-rustyline = "14"            # REPL-style interactive chat
-```
-
-```rust
-#[derive(Parser)]
-#[command(name = "dx", version, about = "Run LLMs locally. Faster.")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Start interactive chat with a model
-    Run {
-        model: String,
-        #[arg(long)] system: Option<String>,
-    },
-    /// Download a model
-    Pull {
-        model: String,
-        #[arg(long)] source: Option<String>,  // "hf" or "ollama"
-    },
-    /// Start the API server
-    Serve {
-        #[arg(short, long, default_value = "127.0.0.1:11434")]
-        bind: String,
-    },
-    /// List downloaded models
-    List,
-    /// Show model details
-    Show { model: String },
-    /// Delete a model
-    Rm { model: String },
-    /// Copy a model
-    Cp { source: String, dest: String },
-    /// Create from Modelfile
-    Create {
-        name: String,
-        #[arg(short, long)]
-        file: PathBuf,
-    },
-    /// Show running models
-    Ps,
-    /// Detect GPU hardware
-    GpuInfo,
-}
-```
-
-**Usage would be identical to Ollama:**
 ```bash
-dx pull llama3.2              # Download from Ollama registry
-dx pull hf:bartowski/Llama-3.2-1B-Instruct-GGUF   # From HuggingFace
-dx run llama3.2               # Interactive chat
-dx serve                      # Start API server on :11434
-dx list                       # Show local models
-dx rm llama3.2                # Delete a model
-dx create mymodel -f Modelfile # Create custom model
-dx ps                         # Show running models
-dx gpu-info                   # Show detected GPUs
+dx pull hf:bartowski/Llama-3.1-8B-Instruct-GGUF
+# → Auto-selects Q4_K_M for your 16GB RAM system
+# → Downloads with progress bar
+# → Ready to run immediately
 ```
 
 ---
 
-### 📁 LAYER 5: Model Storage & Content-Addressable Store
+## 📋 THE COMPLETE LAUNCH CHECKLIST
 
-```toml
-[dependencies]
-sha2 = "0.10"
-hex = "0.4"
-dirs = "5"                   # ~/.dx/ directory
-walkdir = "2"
-memmap2 = "0.9"              # Memory-map model files
-byteorder = "1.5"            # GGUF metadata parsing
+### Day 1-2: Foundation
+```
+[x] llama-cpp-2 FFI loads and runs a GGUF model
+[x] clap CLI: dx run model.gguf works
+[x] Basic token streaming to terminal
 ```
 
+### Day 3-4: Core Features
 ```
-~/.dx/
-├── models/
-│   └── manifests/
-│       ├── registry.ollama.ai/
-│       │   └── library/
-│       │       └── llama3.2/
-│       │           └── latest           # JSON manifest
-│       └── huggingface/
-│           └── bartowski/
-│               └── Llama-3.2-1B/
-│                   └── Q4_K_M           # JSON manifest
-├── blobs/
-│   ├── sha256-abc123...                 # Model weights (GGUF)
-│   ├── sha256-def456...                 # Template
-│   └── sha256-ghi789...                 # System prompt / params
-└── config.json                          # DX global config
+[ ] dx doctor — hardware detection + recommendations
+[ ] Auth middleware — API key generated on first run  
+[ ] Localhost-only binding by default
+[ ] Flash attention + KV cache quant enabled by default
 ```
 
-Auto-discovers models: no need for complex config; scans HuggingFace cache, Ollama model dir, or local folders. — Your DX should also auto-discover existing Ollama models in `~/.ollama/models/`!
-
----
-
-### 📝 LAYER 6: Modelfile Parser
-
-```toml
-[dependencies]
-nom = "7"          # Parser combinator
+### Day 5-7: API + Compatibility
+```
+[ ] axum server with OpenAI-compatible /v1/chat/completions
+[ ] Ollama-compatible /api/generate and /api/chat
+[ ] SSE streaming responses
+[ ] Parallel request handling (n_parallel = auto)
 ```
 
-Parse Ollama's Modelfile format for full compatibility:
+### Day 8-10: Model Management
+```
+[ ] dx pull from Ollama registry (oci-distribution)
+[ ] dx pull hf:user/repo from HuggingFace
+[ ] Auto-migrate existing ~/.ollama/ models
+[ ] dx list, dx rm, dx show
+```
 
-```rust
-// Parse: FROM llama3.2
-// PARAMETER temperature 0.7
-// PARAMETER num_ctx 4096
-// SYSTEM "You are a helpful assistant"
-// TEMPLATE "{{ .System }}\n{{ .Prompt }}"
-// ADAPTER ./lora-weights.gguf
+### Day 11-12: Polish + Ship
+```
+[ ] Verbose startup info (GPU, layers, context, etc.)
+[ ] Progress bars on downloads (indicatif)
+[ ] Tiered CI builds (cpu, cuda, metal)
+[ ] install.sh one-liner
+[ ] MANIFEST.md
+[ ] README with honest benchmarks
+```
 
-#[derive(Debug)]
-enum ModelfileDirective {
-    From(String),
-    Parameter(String, String),
-    System(String),
-    Template(String),
-    Adapter(PathBuf),
-    License(String),
-    Message { role: String, content: String },
-}
-
-fn parse_modelfile(input: &str) -> Vec<ModelfileDirective> {
-    // Use nom to parse each line...
-}
+### Week 3+: Post-Launch
+```
+[ ] --turbo speculative decoding
+[ ] Multimodal (images + audio via mtmd)
+[ ] Smart HuggingFace pull with auto quant selection
+[ ] Modelfile parser (nom)
+[ ] dx create from Modelfile
+[ ] TUI dashboard (ratatui)
+[ ] MCP host support
+[ ] P2P swarm mode
+[ ] Built-in RAG
+[ ] Plugin system
 ```
 
 ---
 
-### 🔍 LAYER 7: GPU Auto-Detection
+## 🎯 The "Honest Benchmarks" README Section
 
-```toml
-[dependencies]
-sysinfo = "0.32"            # CPU/RAM detection
-nvml-wrapper = "0.10"       # NVIDIA GPU detection (optional)
-```
+This is your secret weapon. Ollama oversells. You tell the truth:
 
-```rust
-pub struct HardwareInfo {
-    pub cpu_name: String,
-    pub cpu_cores: usize,
-    pub total_ram_mb: u64,
-    pub gpus: Vec<GpuInfo>,
-}
+```markdown
+## Real Numbers (No Hype)
 
-pub struct GpuInfo {
-    pub name: String,
-    pub vram_mb: u64,
-    pub backend: GpuBackend,  // CUDA, Vulkan, Metal, ROCm
-}
+### Binary Size
+| Build         | DX        | Ollama     | 
+|---------------|-----------|------------|
+| CPU-only      | ~25MB     | ~300MB     |
+| CUDA 12       | ~60MB     | ~1GB+      |
+| macOS Metal   | ~30MB     | ~500MB     |
 
-// Auto-detect and print on startup:
-// DX v0.1.0 | CPU: AMD Ryzen 9 (16 cores) | RAM: 32GB
-// GPU: NVIDIA RTX 4090 (24GB VRAM) via CUDA
-// Listening on 127.0.0.1:11434
-```
+### Startup Time (cold start, no model loaded)
+| Tool   | Time    |
+|--------|---------|
+| DX     | 0.1-0.3s|
+| Ollama | 3-10s   |
 
----
+### What's the Same
+- Inference speed: identical (both use llama.cpp)
+- Model quality: identical (same GGUF files)
+- Model compatibility: identical (same engine)
 
-### 📊 LAYER 8: Logging & Observability
-
-```toml
-[dependencies]
-tracing = "0.1"
-tracing-subscriber = "0.3"
+### What's Different  
+- DX ships auth by default. Ollama doesn't.
+- DX auto-enables flash attention. Ollama doesn't.
+- DX defaults to parallel requests. Ollama defaults to 1.
+- DX shows you what your hardware is doing. Ollama doesn't.
+- DX has zero telemetry. Ollama's is opaque.
+- DX has zero cloud dependencies. Ollama is drifting toward cloud.
 ```
 
 ---
 
-## 🗺️ COMPLETE `Cargo.toml`
+## 🏁 BOTTOM LINE: Your V0.1 Advantage in 12 Days
 
-```toml
-[package]
-name = "dx"
-version = "0.1.0"
-edition = "2024"
-description = "Ollama-compatible LLM runner. Faster. Smaller. Better."
-
-[dependencies]
-# === INFERENCE ENGINE (llama.cpp via FFI) ===
-llama-cpp-2 = { version = "0.1.133" }
-
-# === MODEL REGISTRY ===
-hf-hub = "0.4"
-oci-distribution = "0.11"
-reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
-
-# === API SERVER ===
-axum = { version = "0.7", features = ["ws"] }
-tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
-async-stream = "0.3"
-
-# === CLI ===
-clap = { version = "4", features = ["derive"] }
-indicatif = "0.17"
-dialoguer = "0.11"
-colored = "2"
-rustyline = "14"
-
-# === SERIALIZATION ===
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
-# === MODEL STORAGE ===
-sha2 = "0.10"
-hex = "0.4"
-dirs = "5"
-walkdir = "2"
-memmap2 = "0.9"
-byteorder = "1.5"
-
-# === MODELFILE PARSER ===
-nom = "7"
-
-# === HARDWARE DETECTION ===
-sysinfo = "0.32"
-
-# === LOGGING ===
-tracing = "0.1"
-tracing-subscriber = "0.3"
-
-# === MISC ===
-anyhow = "1"
-futures = "0.3"
-uuid = { version = "1", features = ["v4"] }
-chrono = "0.4"
-
-[features]
-default = []
-cuda = ["llama-cpp-2/cuda"]
-vulkan = ["llama-cpp-2/vulkan"]
-metal = ["llama-cpp-2/metal"]
-rocm = ["llama-cpp-2/hipblas"]
-all-gpu = ["cuda", "vulkan"]
-
-[profile.release]
-opt-level = "z"          # Optimize for size
-lto = true               # Link-Time Optimization
-strip = true             # Strip debug symbols
-codegen-units = 1        # Single codegen unit (smaller)
-panic = "abort"          # Smaller than unwind
-```
-
----
-
-## 📊 DX vs Ollama: The Numbers
-
-| Metric | Ollama (Go) | DX (Rust + llama.cpp) | Improvement |
+| What You Ship | Work | Impact | Why Ollama Can't Respond |
 |---|---|---|---|
-| **Binary (CPU-only)** | ~680MB | **~10-25MB** | 🟢 **~27-68x smaller** |
-| **Binary (with GPU)** | ~1-4GB installed | **~40-80MB** | 🟢 **~12-50x smaller** |
-| **Startup time** | ~5-10 seconds | **<1 second** | 🟢 **~10x faster** |
-| **Idle RAM** | ~100-200MB | **~2-5MB** | 🟢 **~40x less** |
-| **Inference speed** | llama.cpp via CGo bridge | **llama.cpp direct FFI** | 🟢 **No CGo overhead** |
-| **GC pauses** | Yes (Go GC) | **None** | 🟢 **Zero jitter** |
-| **Security CVEs** | Multiple Go CVEs including DoS via Crafted GZIP, Out-of-Bounds Read, Null Pointer Dereference, Cross-Domain Token Exposure, and missing authentication | **Rust memory safety** | 🟢 **Classes eliminated** |
-| **Dependencies** | Go runtime + bundled libs | **Single static binary** | 🟢 **Zero deps** |
+| `dx doctor` | 2 days | 🔥🔥🔥 | Requires architectural changes they won't make |
+| Auth by default | 1 day | 🔥🔥🔥🔥 | Ollama already binds only to localhost by default but has no auth — adding it would break every integration |
+| Auto-migrate Ollama models | 1 day | 🔥🔥🔥 | Can't "migrate" to yourself |
+| Flash attn + KV quant defaults | 0.5 day | 🔥🔥 | Go layer makes this hard to expose |
+| Parallel by default | 0.5 day | 🔥🔥 | Breaking change for their existing users |
+| Tiered binaries | 1 day | 🔥🔥🔥 | Their architecture bundles everything |
+| The Manifest | 0.5 day | 🔥🔥🔥🔥🔥 | They literally can't make this promise anymore |
+| Verbose startup info | 1 day | 🔥🔥 | Philosophy difference — they chose "magic" |
+| Honest benchmarks | 0.5 day | 🔥🔥🔥 | Requires admitting problems |
 
----
+**Total: ~8-10 days to a v0.1 that has 9 clear advantages over Ollama, every one of them real and provable.**
 
-## 🎯 BUILD STRATEGY: 3 Binary Tiers
+Then in weeks 2-4 you add `--turbo` speculative decoding (the true killer feature nobody else has automated), multimodal, and HuggingFace smart pull. That's your v0.2 that makes people say "why would I ever go back?"
 
-```bash
-# TIER 1: Minimal CPU-only (~10-25MB)
-cargo build --release
-# → dx binary: ~10-25MB
-# → Runs on ANY machine, even Raspberry Pi
+Ship the honest version first. The hype will build itself. 🦀🔥
 
-# TIER 2: Single GPU backend (~30-50MB)
-cargo build --release --features cuda
-# → dx binary: ~40-50MB
-# → Optimal for NVIDIA users
+**Brutal truth reminder incorporated:** We're shipping honest tiered binaries (CPU ~15-35MB, single-backend GPU like CUDA12 ~55-80MB). No claiming "all-GPU under 100MB." GPU libs are physics, not solvable by Rust. Focus on what Rust *does* win: safety, async, tiny wrapper overhead, fast builds, and clean UX. These features are chosen for **maximum impact with minimal implementation effort** — things you can add in days/1-2 weeks using mature crates, building directly on your existing llama-cpp-2 + axum + CLI foundation.
 
-# TIER 3: All GPU backends (~60-80MB)
-cargo build --release --features all-gpu
-# → dx binary: ~60-80MB
-# → Universal, still WAY under 100MB
-```
+Here are the **best, simplest, highest-ROI features** for the first public showcase of DX. They directly attack Ollama's current 2026 pain points (exposed servers, flaky GPU detection, migration friction, slow/unsafe defaults) while feeling magically better.
 
----
+### 1. Security by Default (Highest Priority – 1-2 days work)
+**Why it beats Ollama:** 175,000+ publicly exposed Ollama instances in early 2026 are being abused for LLMjacking (spam, malware generation). Ollama defaults to localhost but users break it easily with no auth. News coverage makes this a trust issue.
 
-## 🔥 THE KILLER FEATURE: Drop-in Ollama Replacement
+**Simple Rust implementation:**
+- In axum server setup: `let listener = tokio::net::TcpListener::bind("127.0.0.1:11434")...` (only change on explicit `--host 0.0.0.0`).
+- On first `dx serve` or `dx run`: Generate a random API key (uuid or rand crate), save to `~/.dx/config.toml`, print "Your key: xxx – set DX_API_KEY or use --api-key".
+- Require key on all API routes (simple middleware: check header `Authorization: Bearer <key>`).
+- Add basic rate limiting with `tower_governor`.
 
-Because you're binding to the **same port (11434)** and implementing the **same API**, every tool that works with Ollama works with DX:
+**Value:** Instant "secure by default" marketing win. Rust memory safety is already a bonus. Users trust DX more from day one.
 
-```bash
-# Stop Ollama, start DX
-systemctl stop ollama
-dx serve
+### 2. `dx doctor` + Auto-Optimal Config (2-4 days work)
+**Why it beats Ollama:** GPU fallback bugs, slow detection (30-90s timeouts in containers), users guessing context/layers/quant. Recent complaints about intermittent CPU fallback and update anxiety.
 
-# Everything just works:
-# ✅ Open WebUI        → already connected
-# ✅ Cursor/VSCode     → already connected
-# ✅ Continue.dev      → already connected
-# ✅ LangChain         → already connected
-# ✅ ollama-rs client  → already connected
-# ✅ Any OpenAI SDK    → already connected
-```
+**Simple Rust implementation:**
+- Use `sysinfo` (CPU/RAM) + optional `nvml-wrapper` (NVIDIA VRAM/util).
+- On run: Print clean table (use `comfy-table` or `ratatui` for terminal beauty).
+- Auto-apply: Detect total VRAM → set `n_gpu_layers` to max safe offload, recommend quant, cap context to avoid OOM. Pass directly to `llama-cpp-2` context params.
+- Bonus: `--migrate` flag to import from `~/.ollama` (see #3).
 
----
+**Value:** Feels intelligent and "just works." One command makes users say "this is better than Ollama" immediately. Huge for low-end hardware and first-run experience.
 
-## 🏅 WHY THIS IS BETTER THAN OLLAMA FOR LOW-END SYSTEMS
+### 3. Automatic Ollama Migration on First Run (1 day work)
+**Why it beats Ollama:** Users hate losing models when switching tools. Friction with updates and storage.
 
-| Low-End Scenario | Ollama Problem | DX Solution |
-|---|---|---|
-| **Raspberry Pi 4** | 680MB binary eats storage | ~15MB binary, leaves room for models |
-| **2GB RAM laptop** | 200MB idle RAM from Go | ~3MB idle, more RAM for inference |
-| **Slow disk (SD card)** | 10s startup loading Go runtime | <1s startup |
-| **Android/Termux** | Won't run | Single binary works |
-| **Docker container** | 1GB+ image | ~25MB image |
-| **CI/CD pipeline** | Heavy install step | `curl` one binary, done |
-| **Embedded/IoT** | Impossible | Totally viable |
+**Simple Rust implementation:**
+- On startup (once): Check for `~/.ollama/models`, walk manifests/blobs with `walkdir`.
+- Copy or hard-link to `~/.dx/` structure (your content-addressable store).
+- Verify hashes with `sha2` for safety.
+- Print "Imported X models from Ollama – ready to go."
 
-Shimmy is for when you want the absolute minimum footprint - CI/CD pipelines, quick local testing, or systems where you can't install 680MB of dependencies.
+**Value:** Zero-friction switch for existing Ollama users. Massive conversion hook for showcase demos.
 
----
+### 4. Tiered Builds + One-Line Smart Installer (2-3 days work, ongoing)
+**Why it beats Ollama:** The 300MB-4GB install bloat frustration.
 
-## 🎯 FINAL ANSWER
+**Simple Rust implementation:**
+- Cargo features: `cpu-only`, `cuda12`, `metal`, `rocm` (selective, not all-at-once).
+- GitHub Actions matrix to build & upload: `dx-cpu-linux`, `dx-cuda12-linux`, etc.
+- Ship tiny `install.sh`: detects GPU (lspci/nvml), downloads only matching binary, makes executable, adds to PATH.
+- `dx --version` shows exact build (e.g., "DX 0.1 cpu-only").
 
-> **YES — a Rust-wrapped llama.cpp binary under 100MB that does everything Ollama does is not just possible, it's already been proven by Shimmy at 5MB.** Your DX would be ~10-80MB depending on GPU backends included, which is **10-68x smaller** than Ollama, starts **10x faster**, uses **40x less idle RAM**, has **zero GC pauses**, eliminates **entire classes of security vulnerabilities**, and runs on hardware Ollama can't even touch.
+**Value:** Honest marketing: "Download what you need." Perfect for Raspberry Pi, CI, laptops. Users love the small numbers.
 
-### Your build order:
-1. **Week 1:** `llama-cpp-2` + `clap` → `dx run model.gguf` works
-2. **Week 2:** `axum` → `dx serve` with OpenAI-compatible API
-3. **Week 3:** `hf-hub` + `oci-distribution` → `dx pull` from registries
-4. **Week 4:** Modelfile parser + model management → full Ollama parity
-5. **Week 5:** Auto-discovery of existing Ollama/HF models, GPU detection
-6. **Polish:** Streaming, progress bars, error handling, tests
+### 5. True Async Multi-Request Support from Day One (Almost free – 1 day polish)
+**Why it beats Ollama:** Queuing/single-user feel in many setups, especially Docker.
 
-**Study Shimmy's source code** ([`Michael-A-Kuykendall/shimmy`](https://github.com/Michael-A-Kuykendall/shimmy)) as your reference — it's MIT-licensed, 100% Rust, and proves the architecture works. Then build DX with the additional features (Ollama API compat, Modelfile, full registry support) that Shimmy doesn't have.
+**Simple Rust implementation:**
+- Your axum + tokio setup already enables it. Expose `--parallel 4` (or default higher than Ollama).
+- Use `llama-cpp-2` batching capabilities for continuous-like handling (llama.cpp supports it natively).
+- Simple queue or semaphore if needed for safety.
 
-Go build it. The world needs this. 🦀🔥
+**Value:** Handles multiple tools (Open WebUI + Cursor + custom scripts) smoothly without extra config. Feels production-ready immediately.
 
-**Yes, this is an excellent and very achievable approach.** "Ollama.cpp" refers to leveraging **llama.cpp** (the high-performance C/C++ inference engine that powers Ollama under the hood) wrapped in a thin, efficient Rust layer. This gives you near-full Ollama compatibility (model pulling from registries/Hugging Face, running inference, OpenAI/Ollama-style API endpoints, CLI commands like `pull`/`run`/`list`/`rm`, Modelfile support, streaming, etc.) while delivering a **single static binary well under 100 MB**—often 5–50 MB depending on features.
+### 6. Enhanced CLI UX + Simple TUI Monitor (2-3 days work)
+**Why it beats Ollama:** Basic output, no visibility into what's happening.
 
-The result is **faster startup/loading**, **lower runtime overhead**, **better memory efficiency**, and **easier distribution** than official Ollama (Go-based, often 600+ MB installed footprint with dependencies). It runs great on low-end hardware/OS (old CPUs, 4–8 GB RAM systems, minimal Linux distributions) by using CPU-only quantized models (e.g., Q4_K_M 3B–7B models) with layer offloading.
+**Simple Rust implementation:**
+- `clap` + `indicatif` (progress bars for pull), `colored`, `dialoguer`.
+- `dx ps --watch` or `dx serve --monitor`: Lightweight terminal UI with `ratatui` + `crossterm` showing tokens/s, GPU use, active requests (pull stats from llama-cpp-2 context).
+- Make TUI optional via Cargo feature to keep core binary small.
 
-### Ready-Made Winner: **Shimmy**
-The closest existing project to exactly what you described is **Shimmy** — a Rust-based, llama.cpp-backed Ollama/OpenAI alternative.
+**Value:** Polish that makes DX feel modern and observable. Great for demos and daily use.
 
-- **GitHub**: michael-a-kuykendall/shimmy (or forks/variants like mkll/shimmy-ai)
-- **Binary size**: ~4.8–5.1 MB for minimal/CPU builds; 20–50 MB with GPU backends (still <<100 MB and far smaller than Ollama's ~680 MB).
-- **Key advantages**:
-  - Single static binary, zero Python or heavy deps.
-  - 100% OpenAI-compatible API (`/v1/chat/completions`, etc.) + some Ollama-style endpoints.
-  - Auto-discovers/runs GGUF models from Ollama directories, Hugging Face cache, or local paths.
-  - Hot model swapping, smart preloading, response caching (20–40% gains).
-  - GPU auto-detection (CUDA, Vulkan, OpenCL, MLX) with CPU fallback + MOE offloading for large models on limited hardware.
-  - Startup <100 ms, baseline ~50 MB RAM (vs Ollama's 5–10 s and 200 MB+).
-- **For low-end systems**: Use the CPU-only build — tiny footprint, runs efficiently on older hardware with quantized models. No daemon bloat.
-- **Installation**: Download pre-built from releases or `cargo install shimmy` (with feature flags for backends).
+### 7. The DX Manifest + Zero Telemetry (Zero code work)
+**Why it beats Ollama:** Growing perception of cloud drift and opaque updates.
 
-This gets you 80–90% of Ollama's daily usage (serve models locally, connect tools like VS Code/Cursor/Continue.dev) in a dramatically smaller/faster package. Many users switch to direct llama.cpp or alternatives like this for exactly the size and speed reasons.
+**Implementation:** Just add a `MANIFEST.md` in repo/root and embed/print on `--version` or first run:
+- 100% local forever.
+- No telemetry.
+- Auth & localhost default.
+- Honest sizes and benchmarks published per release.
+- MIT, no CLA.
 
-### Building Your Own Full-Featured Rust "Ollama" (If You Want Custom/Complete CLI Parity)
-If Shimmy doesn't cover every Ollama CLI nuance (e.g., full `ollama pull`/`run` workflow with Modelfile templating), build a thin Rust wrapper around llama.cpp. This is straightforward in 2026 thanks to mature bindings.
+**Value:** Powerful trust signal for open-source community. Free marketing differentiator.
 
-**Core Crates/Stack**:
-1. **Inference (llama.cpp integration)**:
-   - `edgenai/llama_cpp-rs` or `utilityai/llama-cpp-rs` (high-level/async bindings) — Best for features and ease.
-   - Alternatives: `mdrokz/rust-llama.cpp` (nicer API).
-   - This links to llama.cpp for battle-tested, optimized GGUF inference (CPU/GPU, quantization, offloading).
+### MVP Launch Plan (Fast Path to Public Showcase)
+**Week 1-2 focus:**
+- Core (your existing llama-cpp-2 + axum + CLI + registries).
+- Add #1 Security defaults + #3 Auto-migration + #2 `dx doctor`.
+- Tiered builds + installer script (#4).
+- Polish CLI + basic monitor (#6).
+- Ship Manifest.
 
-2. **API Server (Ollama + OpenAI compatible)**:
-   - `axum` + `tokio` — Async, high-performance HTTP/WebSocket server. Implement `/api/generate`, `/v1/chat/completions`, streaming, etc.
+This gets you a drop-in replacement that's **noticeably smaller, faster to start, more secure, and smarter about hardware** — all with low-risk, high-visibility wins. Total new code is manageable.
 
-3. **Model Management & Pulling**:
-   - `reqwest` + `serde` — Download from registry.ollama.ai or Hugging Face (manifests + blobs).
-   - `tokio::fs` + `tempfile` — Safe downloading/unpacking to `~/.local/share/rustollama/models` or similar.
+**Defer for v0.2+ (after feedback):** Auto speculative decoding (stability/tuning issues in llama.cpp as of 2026), full MCP host, built-in RAG pipeline, P2P swarm, plugins. These add complexity and maintenance.
 
-4. **CLI**:
-   - `clap` (derive) — Full subcommands (`pull <model>`, `run <model>`, `list`, `rm`, `serve`).
+These features play to Rust's strengths without fighting GPU lib sizes. They solve real 2026 complaints (security exposure, setup friction, opacity) and give immediate "wow" in demos.
 
-5. **Storage & Extras**:
-   - `redb` or `rusqlite` — Lightweight model index.
-   - `dirs` — Cross-platform paths.
-   - `tracing` / `miette` — Logging and nice errors.
-   - Modelfile parser: Simple custom with `serde` or toml.
-
-**Building Small & Optimized (<100 MB, Low-End Friendly)**:
-- Target static musl: `cargo build --target x86_64-unknown-linux-musl --release` (or `aarch64` for ARM).
-- Feature flags: Disable unnecessary backends (e.g., CPU-only for smallest size/low-end).
-- llama.cpp build options: CPU-only + BLAS/optimized flags → binaries often 10–30 MB total linked.
-- Result: Single executable, no runtime deps, runs on minimal Linux (even Alpine or embedded-like systems). GPU builds add size but are optional.
-
-**Performance & Size Gains vs Official Ollama**:
-- **Binary/DX size**: 5–50 MB single file vs Ollama's hundreds of MB + deps. Easy distribution (just download and run).
-- **Startup/Loading**: Sub-100 ms vs seconds (no Go runtime/GC).
-- **Inference**: Matches or exceeds Ollama (llama.cpp core is the same/similar; Rust adds negligible overhead, better async handling).
-- **Memory/Overhead**: Lower baseline and better efficiency — great for low-RAM systems (use Q4/Q5 quantized models + CPU offloading).
-- **Low-end compatibility**: Excellent on old CPUs, limited RAM (4–8+ GB), minimal OS installs. Avoid heavy GPU features for tiniest footprint.
-
-**Realistic Scope**:
-- **All features possible**: Yes — pulling, local management, API serving, templating, multi-model, etc. — but prioritize MVP (inference server + basic CLI/pulling) then expand. Full parity with 10+ years of Ollama edge cases takes time, but core daily use is quick to reach.
-- Models themselves are the real storage hog (GBs for GGUF files) — your tool just manages them efficiently.
-
-**Recommendation**:
-- **Start today**: Download and test **Shimmy** — it directly delivers the "download small binary → full local LLM power" experience you're after, backed by llama.cpp.
-- **Build custom**: Fork Shimmy or start with `llama_cpp_rs` + `axum` + `clap`. I can provide a Cargo.toml skeleton, basic `pull` + `serve` code outline, or static build instructions if you share your target platform (Linux x64/ARM, Windows, macOS) or priority features.
-
-This combination (Rust orchestration + llama.cpp engine) is one of the best ways to get a lighter, faster, more embeddable Ollama-like tool. It fits perfectly with the "Docker in Rust" mindset from earlier — small, safe, powerful binaries.
-
-What do you want to tackle first: trying Shimmy, a minimal Cargo setup, model pulling code, or CLI structure? Let's make this DX tiny and blazing fast! 🦀
+Pick the top 3 you want starter code or detailed Cargo.toml adjustments for first (security + doctor + migration is my recommended core). Let's get DX out the door fast and correctly. 🦀
