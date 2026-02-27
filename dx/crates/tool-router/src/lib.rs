@@ -31,7 +31,7 @@ impl ToolRouterSaver {
         }
     }
 
-    pub fn select_tools<'a>(&self, available: &'a [ToolDefinition], messages: &[Message]) -> Vec<&'a ToolDefinition> {
+    pub fn select_tools<'a>(&self, available: &'a [ToolSchema], messages: &[Message]) -> Vec<&'a ToolSchema> {
         let context: String = messages.iter()
             .filter(|m| m.role == "user" || m.role == "system")
             .map(|m| m.content.to_lowercase())
@@ -52,7 +52,7 @@ impl ToolRouterSaver {
                 || self.keyword_map.keys().any(|cat| {
                     if selected_names.contains(cat.as_str()) {
                         t.name.to_lowercase().contains(cat.as_str())
-                            || t.description.as_deref().unwrap_or("").to_lowercase().contains(cat.as_str())
+                            || t.description.to_lowercase().contains(cat.as_str())
                     } else {
                         false
                     }
@@ -86,11 +86,11 @@ impl TokenSaver for ToolRouterSaver {
 
         let before_count = input.tools.len();
         let selected = self.select_tools(&input.tools, &input.messages);
-        let selected_names: std::collections::HashSet<&str> = selected.iter().map(|t| t.name.as_str()).collect();
+        let selected_names: std::collections::HashSet<String> = selected.iter().map(|t| t.name.clone()).collect();
 
-        let before_tokens: usize = input.tools.iter().map(|t| t.definition_tokens).sum();
+        let before_tokens: usize = input.tools.iter().map(|t| t.token_count).sum();
         input.tools.retain(|t| selected_names.contains(t.name.as_str()));
-        let after_tokens: usize = input.tools.iter().map(|t| t.definition_tokens).sum();
+        let after_tokens: usize = input.tools.iter().map(|t| t.token_count).sum();
 
         let saved = before_tokens.saturating_sub(after_tokens);
         if saved > 0 {

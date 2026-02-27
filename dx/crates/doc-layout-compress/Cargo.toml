@@ -7,3 +7,4 @@ description = "Layout-aware document compression — structure + content optimiz
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+regex-lite = { workspace = true }

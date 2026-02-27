@@ -99,55 +99,59 @@ impl Asset3dMeshSummarizeSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for Asset3dMeshSummarizeSaver {
-    fn modality(&self) -> Modality { Modality::Asset3d }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for Asset3dMeshSummarizeSaver {
     fn name(&self) -> &str { "asset3d-mesh-summarize" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 84 }
+    fn modality(&self) -> Modality { Modality::Asset3d }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let mut total_saved = 0usize;
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
 
-        for msg in &mut input.messages {
-            if msg.modality.as_deref() != Some("asset3d") { continue; }
-            let ct = msg.content_type.as_deref().unwrap_or("");
-            if !ct.contains("obj") && !ct.contains("mesh") && !ct.contains("stl") { continue; }
-
-            let original_tokens = msg.token_count;
-            let stats = Self::parse_obj_stats(&msg.content);
-
+        for asset in &mut input.assets_3d {
+            let content = String::from_utf8_lossy(&asset.data).into_owned();
+            let stats = Self::parse_obj_stats(&content);
             if stats.vertex_count == 0 && stats.face_count == 0 { continue; }
 
+            total_before += asset.naive_token_estimate;
             let summary = Self::format_summary(&stats);
             let summary_tokens = summary.len() / 4;
+            total_after += summary_tokens;
 
-            if summary_tokens < original_tokens {
-                total_saved += original_tokens - summary_tokens;
-                msg.content = summary;
-                msg.token_count = summary_tokens;
+            if summary_tokens < asset.naive_token_estimate {
+                asset.data = summary.into_bytes();
             }
         }
 
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "asset3d-mesh-summarize".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("mesh summary saved {} tokens", total_saved),
+                description: format!("mesh summary: {} -> {} tokens", total_before, total_after),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

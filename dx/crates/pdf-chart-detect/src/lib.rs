@@ -128,21 +128,21 @@ impl PdfChartDetectSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for PdfChartDetectSaver {
-    fn modality(&self) -> Modality { Modality::Document }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for PdfChartDetectSaver {
     fn name(&self) -> &str { "pdf-chart-detect" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 62 }
+    fn modality(&self) -> Modality { Modality::Document }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
         let mut annotations = Vec::new();
 
-        for img_bytes in &input.images {
-            if let Ok(img) = image::load_from_memory(img_bytes.as_slice()) {
-                let regions = self.detect_regions(&img);
+        for img in &input.base.images {
+            if let Ok(decoded) = image::load_from_memory(&img.data) {
+                let regions = self.detect_regions(&decoded);
                 if !regions.is_empty() {
                     annotations.push(Self::format_annotation(&regions));
                 }
@@ -150,19 +150,29 @@ impl TokenSaver for PdfChartDetectSaver {
         }
 
         for annotation in annotations {
-            let mut msg = Message::default();
-            msg.role = "system".into();
-            msg.content = annotation;
-            msg.token_count = msg.content.len() / 4;
-            input.messages.push(msg);
+            let tokens = annotation.len() / 4;
+            input.base.messages.push(Message {
+                role: "system".into(),
+                content: annotation,
+                images: Vec::new(),
+                tool_call_id: None,
+                token_count: tokens,
+            });
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

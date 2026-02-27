@@ -3,7 +3,6 @@
 //! STAGE: PrePrompt (priority 42)
 
 use dx_core::*;
-use std::io::Write;
 use std::sync::Mutex;
 
 pub struct AudioTranscribeSaver {
@@ -50,13 +49,10 @@ impl AudioTranscribeSaver {
 
     /// Run system `whisper` command and return transcription.
     pub fn transcribe_system(audio_data: &[u8], format: &str) -> Option<String> {
-        // Write to temp file
-        let mut tmp = tempfile::Builder::new()
-            .suffix(&format!(".{}", format))
-            .tempfile()
-            .ok()?;
-        tmp.write_all(audio_data).ok()?;
-        let tmp_path = tmp.path().to_path_buf();
+        // Write to temp file using stdlib
+        let pid = std::process::id();
+        let tmp_path = std::path::PathBuf::from(format!("/tmp/dx_audio_{}.{}", pid, format));
+        std::fs::write(&tmp_path, audio_data).ok()?;
 
         let output = std::process::Command::new("whisper")
             .arg(tmp_path.to_str()?)
@@ -95,65 +91,80 @@ impl AudioTranscribeSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for AudioTranscribeSaver {
-    fn modality(&self) -> Modality { Modality::Audio }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for AudioTranscribeSaver {
     fn name(&self) -> &str { "audio-transcribe" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 42 }
+    fn modality(&self) -> Modality { Modality::Audio }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
         if matches!(self.config.method, TranscribeMethod::Disabled) {
-            return Ok(SaverOutput {
-                messages: input.messages,
-                tools: input.tools,
-                images: input.images,
-                skipped: false,
-                cached_response: None,
+            return Ok(MultiModalSaverOutput {
+                base: SaverOutput {
+                    messages: input.base.messages,
+                    tools: input.base.tools,
+                    images: input.base.images,
+                    skipped: false,
+                    cached_response: None,
+                },
+                audio: input.audio,
+                live_frames: input.live_frames,
+                documents: input.documents,
+                videos: input.videos,
+                assets_3d: input.assets_3d,
             });
         }
 
-        let mut total_saved = 0usize;
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
 
-        for msg in &mut input.messages {
-            if msg.modality.as_deref() != Some("audio") { continue; }
-            let audio_bytes = match msg.binary_data.as_deref() {
-                Some(b) => b.to_vec(),
-                None => continue,
+        for audio in &mut input.audio {
+            let format_str = match audio.format {
+                AudioFormat::Wav => "wav",
+                AudioFormat::Mp3 => "mp3",
+                _ => "wav",
             };
+            total_before += audio.naive_token_estimate;
 
-            let format = msg.content_type.as_deref().unwrap_or("wav");
-            let original_tokens = msg.token_count;
-
-            let transcript = Self::transcribe_system(&audio_bytes, format);
-            if let Some(text) = transcript {
+            if let Some(text) = Self::transcribe_system(&audio.data, format_str) {
                 let formatted = Self::format_transcription(&text, self.config.include_timestamps);
-                msg.content = formatted;
-                msg.token_count = msg.content.len() / 4;
-                msg.binary_data = None;
-                total_saved += original_tokens.saturating_sub(msg.token_count);
+                let transcript_tokens = formatted.len() / 4;
+                audio.data = formatted.into_bytes();
+                audio.compressed_tokens = transcript_tokens;
+                total_after += transcript_tokens;
+            } else {
+                total_after += audio.naive_token_estimate;
             }
         }
 
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "audio-transcribe".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("transcribed audio, saved {} tokens", total_saved),
+                description: format!("transcribed audio: {} → {} tokens", total_before, total_after),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

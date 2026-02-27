@@ -71,24 +71,24 @@ impl CrossModalDedupSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for CrossModalDedupSaver {
-    fn modality(&self) -> Modality { Modality::CrossModal }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for CrossModalDedupSaver {
     fn name(&self) -> &str { "cross-modal-dedup" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 92 }
+    fn modality(&self) -> Modality { Modality::CrossModal }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let before_tokens: usize = input.base.messages.iter().map(|m| m.token_count).sum();
 
         // Build candidates for all non-system messages with enough tokens
-        let candidates: Vec<ContentCandidate> = input.messages.iter().enumerate()
+        let candidates: Vec<ContentCandidate> = input.base.messages.iter().enumerate()
             .filter(|(_, m)| m.role != "system" && m.token_count >= self.config.min_tokens_to_dedup)
             .map(|(i, m)| ContentCandidate {
                 index: i,
-                modality: m.modality.clone().unwrap_or_else(|| "text".into()),
+                modality: if m.images.is_empty() { "text".into() } else { "image".into() },
                 token_count: m.token_count,
                 word_set: Self::word_set(&m.content),
             })
@@ -104,7 +104,6 @@ impl TokenSaver for CrossModalDedupSaver {
 
             for j in (i + 1)..n {
                 if to_remove.contains(&candidates[j].index) { continue; }
-                // Only dedup across different modalities or same modality
                 let sim = Self::jaccard(&candidates[i].word_set, &candidates[j].word_set);
                 if sim >= self.config.similarity_threshold {
                     dup_group.push(candidates[j].index);
@@ -112,7 +111,7 @@ impl TokenSaver for CrossModalDedupSaver {
             }
 
             if dup_group.len() > 1 {
-                let keep = Self::cheapest_index(&dup_group, &input.messages);
+                let keep = Self::cheapest_index(&dup_group, &input.base.messages);
                 for &idx in &dup_group {
                     if idx != keep {
                         to_remove.insert(idx);
@@ -123,15 +122,15 @@ impl TokenSaver for CrossModalDedupSaver {
 
         // Annotate removed messages
         for &idx in &to_remove {
-            let tokens = input.messages[idx].token_count;
-            input.messages[idx].content = format!(
+            let tokens = input.base.messages[idx].token_count;
+            input.base.messages[idx].content = format!(
                 "[DEDUP: content merged with more efficient representation, {} tokens saved]",
                 tokens
             );
-            input.messages[idx].token_count = input.messages[idx].content.len() / 4;
+            input.base.messages[idx].token_count = input.base.messages[idx].content.len() / 4;
         }
 
-        let after_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let after_tokens: usize = input.base.messages.iter().map(|m| m.token_count).sum();
         let saved = before_tokens.saturating_sub(after_tokens);
 
         if saved > 0 {
@@ -148,12 +147,19 @@ impl TokenSaver for CrossModalDedupSaver {
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

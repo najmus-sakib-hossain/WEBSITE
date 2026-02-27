@@ -73,46 +73,56 @@ impl Asset3dMultiviewCompressSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for Asset3dMultiviewCompressSaver {
-    fn modality(&self) -> Modality { Modality::Asset3d }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for Asset3dMultiviewCompressSaver {
     fn name(&self) -> &str { "asset3d-multiview-compress" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 80 }
+    fn modality(&self) -> Modality { Modality::Asset3d }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let total_views = input.images.len();
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let total_views = input.base.images.len();
         if total_views <= self.config.max_views {
-            return Ok(SaverOutput {
-                messages: input.messages,
-                tools: input.tools,
-                images: input.images,
-                skipped: false,
-                cached_response: None,
+            return Ok(MultiModalSaverOutput {
+                base: SaverOutput {
+                    messages: input.base.messages,
+                    tools: input.base.tools,
+                    images: input.base.images,
+                    skipped: false,
+                    cached_response: None,
+                },
+                audio: input.audio,
+                live_frames: input.live_frames,
+                documents: input.documents,
+                videos: input.videos,
+                assets_3d: input.assets_3d,
             });
         }
 
         let selected = self.select_views(total_views);
         let kept = selected.len();
-        let new_images: Vec<Vec<u8>> = selected.iter()
-            .map(|&i| input.images[i].clone())
+        let new_images: Vec<ImageInput> = selected.iter()
+            .map(|&i| input.base.images[i].clone())
             .collect();
 
         let saved_views = total_views - kept;
         let tokens_saved = saved_views * self.config.tokens_per_view;
-        input.images = new_images;
+        input.base.images = new_images;
 
         let annotation = format!(
             "[3D ASSET: {} views selected from {} (canonical: front/side/top/iso)]",
             kept, total_views
         );
-        let mut msg = Message::default();
-        msg.role = "system".into();
-        msg.content = annotation;
-        msg.token_count = msg.content.len() / 4;
-        input.messages.push(msg);
+        let ann_tokens = annotation.len() / 4;
+        input.base.messages.push(Message {
+            role: "system".into(),
+            content: annotation,
+            images: Vec::new(),
+            tool_call_id: None,
+            token_count: ann_tokens,
+        });
 
         if tokens_saved > 0 {
             let mut report = self.report.lock().unwrap();
@@ -125,12 +135,19 @@ impl TokenSaver for Asset3dMultiviewCompressSaver {
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

@@ -66,73 +66,92 @@ impl PdfPageCompressSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for PdfPageCompressSaver {
-    fn modality(&self) -> Modality { Modality::Document }
-}
-
 #[async_trait::async_trait]
-impl TokenSaver for PdfPageCompressSaver {
+impl MultiModalTokenSaver for PdfPageCompressSaver {
     fn name(&self) -> &str { "pdf-page-compress" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 64 }
+    fn modality(&self) -> Modality { Modality::Document }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let mut total_saved = 0usize;
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
         let mut new_images = Vec::new();
         let mut page_count = 0usize;
 
-        for img_bytes in &input.images {
+        for img in &input.base.images {
             if page_count >= self.config.max_pages {
-                // Drop excess pages
-                total_saved += img_bytes.len() / 4 / 100;
+                total_before += img.original_tokens;
+                // dropped
                 continue;
             }
 
-            let img = match image::load_from_memory(img_bytes.as_slice()) {
+            let decoded = match image::load_from_memory(&img.data) {
                 Ok(i) => i,
-                Err(_) => { new_images.push(img_bytes.clone()); continue; }
+                Err(_) => { new_images.push(img.clone()); total_before += img.original_tokens; total_after += img.original_tokens; continue; }
             };
 
-            let original_est = img_bytes.len() * 8 / 4; // rough token estimate
-            let compressed = self.compress_page(&img);
+            total_before += img.original_tokens;
+            let compressed_bytes = self.compress_page(&decoded);
             let compressed_tokens = self.config.target_tokens_per_page;
+            total_after += compressed_tokens;
 
-            total_saved += original_est.saturating_sub(compressed_tokens * 4);
-            new_images.push(compressed);
+            new_images.push(ImageInput {
+                data: compressed_bytes,
+                mime: "image/jpeg".into(),
+                detail: ImageDetail::Low,
+                original_tokens: img.original_tokens,
+                processed_tokens: compressed_tokens,
+            });
             page_count += 1;
         }
 
-        input.images = new_images;
-
+        let total_saved = total_before.saturating_sub(total_after);
         if page_count > 0 {
             let annotation = Self::annotate_document(
                 page_count,
                 page_count * self.config.target_tokens_per_page,
             );
-            let mut doc_msg = Message::default();
-            doc_msg.role = "system".into();
-            doc_msg.content = annotation;
-            doc_msg.token_count = doc_msg.content.len() / 4;
-            input.messages.push(doc_msg);
+            let tokens = annotation.len() / 4;
+            input.base.messages.push(Message {
+                role: "system".into(),
+                content: annotation,
+                images: Vec::new(),
+                tool_call_id: None,
+                token_count: tokens,
+            });
         }
+
+        input.base.images = new_images;
 
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "pdf-page-compress".into(),
-                tokens_before: total_saved,
-                tokens_after: page_count * self.config.target_tokens_per_page,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("compressed {} PDF pages to DocOwl2 resolution", page_count),
+                description: format!("compressed {} PDF pages: {} → {} tokens", page_count, total_before, total_after),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

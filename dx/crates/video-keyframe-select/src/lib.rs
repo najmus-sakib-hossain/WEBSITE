@@ -3,7 +3,6 @@
 //! STAGE: PrePrompt (priority 72)
 
 use dx_core::*;
-use image::DynamicImage;
 use std::sync::Mutex;
 
 pub struct VideoKeyframeSelectSaver {
@@ -57,11 +56,6 @@ impl VideoKeyframeSelectSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for VideoKeyframeSelectSaver {
-    fn modality(&self) -> Modality { Modality::Video }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for VideoKeyframeSelectSaver {
     fn name(&self) -> &str { "video-keyframe-select" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -84,7 +78,7 @@ impl TokenSaver for VideoKeyframeSelectSaver {
         let saved_frames = total - kept;
         let tokens_saved = saved_frames * 170;
 
-        let new_images: Vec<Vec<u8>> = keyframe_indices.iter()
+        let new_images: Vec<ImageInput> = keyframe_indices.iter()
             .map(|&i| input.images[i].clone())
             .collect();
         input.images = new_images;
@@ -94,11 +88,14 @@ impl TokenSaver for VideoKeyframeSelectSaver {
             "[VIDEO KEYFRAMES: {} selected from {} frames ({:.1}s) at {}s intervals]",
             kept, total, duration, self.config.keyframe_interval_secs
         );
-        let mut msg = Message::default();
-        msg.role = "system".into();
-        msg.content = annotation;
-        msg.token_count = msg.content.len() / 4;
-        input.messages.push(msg);
+        let token_count = annotation.len() / 4;
+        input.messages.push(Message {
+            role: "system".into(),
+            content: annotation,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        });
 
         if tokens_saved > 0 {
             let mut report = self.report.lock().unwrap();

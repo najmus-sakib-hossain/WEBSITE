@@ -141,59 +141,69 @@ impl AudioCompressSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for AudioCompressSaver {
-    fn modality(&self) -> Modality { Modality::Audio }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for AudioCompressSaver {
     fn name(&self) -> &str { "audio-compress" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 45 }
+    fn modality(&self) -> Modality { Modality::Audio }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let mut total_saved = 0usize;
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
 
-        for msg in &mut input.messages {
-            if msg.modality.as_deref() != Some("audio") { continue; }
+        for audio in &mut input.audio {
+            if audio.duration_secs < self.config.min_duration_secs { continue; }
 
-            let audio_bytes = match msg.binary_data.as_deref() {
-                Some(b) => b.to_vec(),
-                None => continue,
+            let format_str = match audio.format {
+                AudioFormat::Wav => "wav",
+                AudioFormat::Pcm16 => "pcm",
+                _ => "raw",
             };
-
-            let format = msg.content_type.as_deref().unwrap_or("raw");
-            let samples = Self::decode_to_f32_pub(&audio_bytes, format);
+            let sample_rate = audio.sample_rate as f64;
+            let samples = Self::decode_to_f32_pub(&audio.data, format_str);
             if samples.is_empty() { continue; }
 
-            let duration_secs = samples.len() as f64 / 16000.0;
-            if duration_secs < self.config.min_duration_secs { continue; }
-
-            let original_tokens = msg.token_count;
-            let description = self.spectral_compress(&samples, 16000.0);
-
-            msg.content = description;
-            msg.token_count = msg.content.len() / 4;
-            msg.binary_data = None;
-            total_saved += original_tokens.saturating_sub(msg.token_count);
+            total_before += audio.naive_token_estimate;
+            let description = self.spectral_compress(&samples, sample_rate);
+            let compressed_tokens = description.len() / 4;
+            audio.data = description.into_bytes();
+            audio.format = AudioFormat::Pcm16; // repurposed as text-encoded
+            audio.compressed_tokens = compressed_tokens;
+            total_after += compressed_tokens;
         }
 
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "audio-compress".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("spectral audio compression saved {} tokens", total_saved),
+                description: format!(
+                    "spectral audio compression: {} → {} tokens ({:.0}% saved)",
+                    total_before, total_after,
+                    total_saved as f64 / total_before.max(1) as f64 * 100.0
+                ),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

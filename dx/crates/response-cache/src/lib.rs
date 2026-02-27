@@ -4,6 +4,7 @@
 
 use dx_core::*;
 use redb::{Database, TableDefinition};
+use semantic_cache::SemanticCacheSaver;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -41,10 +42,10 @@ impl ResponseCacheSaver {
         }
     }
 
-    pub fn build_key(messages: &[Message], tools: &[ToolDefinition]) -> [u8; 32] {
+    pub fn build_key(messages: &[Message], tools: &[ToolSchema]) -> [u8; 32] {
         let mut hasher = blake3::Hasher::new();
         for msg in messages {
-            let canonical = semantic_cache::canonicalize(&msg.content);
+            let canonical = SemanticCacheSaver::canonicalize(&msg.content);
             hasher.update(msg.role.as_bytes());
             hasher.update(canonical.as_bytes());
         }

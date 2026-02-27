@@ -405,6 +405,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "regex-lite",
 ]
 
 [[package]]
@@ -1654,6 +1655,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "image",
 ]
 
 [[package]]
@@ -1662,6 +1664,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "dx-core",
+ "image",
 ]
 
 [[package]]

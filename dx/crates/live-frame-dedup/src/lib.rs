@@ -68,26 +68,29 @@ impl LiveFrameDedupSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for LiveFrameDedupSaver {
-    fn modality(&self) -> Modality { Modality::Live }
-}
-
 #[async_trait::async_trait]
-impl TokenSaver for LiveFrameDedupSaver {
+impl MultiModalTokenSaver for LiveFrameDedupSaver {
     fn name(&self) -> &str { "live-frame-dedup" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 50 }
+    fn modality(&self) -> Modality { Modality::Live }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
         let mut prev_thumb: Option<Vec<u8>> = None;
         let mut skip_count = 0usize;
-        let mut total_saved = 0usize;
-        let mut new_images = Vec::new();
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
+        let mut kept_frames = Vec::new();
 
-        for img_bytes in &input.images {
-            let img = image::load_from_memory(img_bytes.as_slice())
-                .map_err(|e| SaverError::ProcessingError(e.to_string()))?;
+        for frame in &input.live_frames {
+            let img = image::load_from_memory(&frame.image_data)
+                .map_err(|e| SaverError::Failed(e.to_string()))?;
             let thumb = self.create_thumbnail(&img);
+            total_before += frame.token_estimate;
 
             let keep = if let Some(ref prev) = prev_thumb {
                 let diff = Self::frame_difference(&thumb, prev);
@@ -99,33 +102,45 @@ impl TokenSaver for LiveFrameDedupSaver {
             if keep {
                 prev_thumb = Some(thumb);
                 skip_count = 0;
-                new_images.push(img_bytes.clone());
+                total_after += frame.token_estimate;
+                kept_frames.push(frame.clone());
             } else {
                 skip_count += 1;
-                // Rough token estimate per dropped frame
-                total_saved += img_bytes.len() / 4 / 100;
             }
         }
 
-        input.images = new_images;
-
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "live-frame-dedup".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("deduped live frames, saved ~{} tokens", total_saved),
+                description: format!(
+                    "dropped {}/{} duplicate frames, saved {} tokens",
+                    input.live_frames.len() - kept_frames.len(),
+                    input.live_frames.len(),
+                    total_saved
+                ),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        input.live_frames = kept_frames;
+
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

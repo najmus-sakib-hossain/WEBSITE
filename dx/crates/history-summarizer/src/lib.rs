@@ -46,10 +46,15 @@ impl HistorySummarizerSaver {
         if replace_count == 0 || replace_count > messages.len() {
             return;
         }
-        let mut summary_msg = Message::default();
-        summary_msg.role = "system".into();
-        summary_msg.content = format!("[HISTORY SUMMARY]\n{}", summary);
-        summary_msg.token_count = summary_msg.content.len() / 4;
+        let content = format!("[HISTORY SUMMARY]\n{}", summary);
+        let token_count = content.len() / 4;
+        let summary_msg = Message {
+            role: "system".into(),
+            content,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        };
 
         messages.drain(0..replace_count);
         messages.insert(0, summary_msg);

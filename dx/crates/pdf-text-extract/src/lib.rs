@@ -3,7 +3,6 @@
 //! STAGE: PrePrompt (priority 60)
 
 use dx_core::*;
-use std::io::Write;
 use std::sync::Mutex;
 
 pub struct PdfTextExtractSaver {
@@ -17,24 +16,26 @@ impl PdfTextExtractSaver {
         }
     }
 
-    /// Try to extract text from PDF bytes using system pdftotext.
+    /// Try to extract text from PDF bytes using system pdftotext via stdin/stdout.
     pub fn try_pdftotext(pdf_bytes: &[u8]) -> Option<String> {
-        // Write temp PDF
-        let mut tmp = tempfile::Builder::new()
-            .suffix(".pdf")
-            .tempfile()
-            .ok()?;
-        tmp.write_all(pdf_bytes).ok()?;
-        let tmp_path = tmp.path().to_path_buf();
+        use std::io::Write;
+        use std::process::{Command, Stdio};
 
-        let output = std::process::Command::new("pdftotext")
-            .arg(tmp_path.to_str()?)
-            .arg("-")
-            .output()
+        let mut child = Command::new("pdftotext")
+            .arg("-")  // read from stdin
+            .arg("-")  // write to stdout
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
             .ok()?;
 
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(pdf_bytes).ok()?;
+        }
+
+        let output = child.wait_with_output().ok()?;
         if !output.status.success() { return None; }
-
         let text = String::from_utf8(output.stdout).ok()?;
         if text.trim().len() < 100 { return None; }
         Some(text)
@@ -48,11 +49,6 @@ impl Default for PdfTextExtractSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for PdfTextExtractSaver {
-    fn modality(&self) -> Modality { Modality::Document }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for PdfTextExtractSaver {
     fn name(&self) -> &str { "pdf-text-extract" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -61,36 +57,40 @@ impl TokenSaver for PdfTextExtractSaver {
     async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
         let mut total_saved = 0usize;
 
-        for msg in &mut input.messages {
-            if msg.modality.as_deref() != Some("document") { continue; }
-            let content_type = msg.content_type.as_deref().unwrap_or("");
-            if !content_type.contains("pdf") && !content_type.contains("PDF") {
-                continue;
-            }
+        // Process images that are PDF mime type — extract text and add as message
+        let mut extracted_texts: Vec<String> = Vec::new();
+        let mut pdf_images: Vec<usize> = Vec::new();
 
-            let pdf_bytes = match msg.binary_data.as_deref() {
-                Some(b) => b.to_vec(),
-                None => continue,
-            };
-
-            let original_tokens = msg.token_count;
-            // Estimate original cost: ~1700 tokens per PDF page
-            let page_estimate = (pdf_bytes.len() / 50_000).max(1);
-            let pdf_tokens = page_estimate * 1700;
-
-            if let Some(text) = Self::try_pdftotext(&pdf_bytes) {
-                let text_tokens = text.len() / 4;
-                if text_tokens < pdf_tokens {
-                    msg.content = format!(
-                        "[PDF TEXT EXTRACT: ~{} pages, {} chars]\n{}",
-                        page_estimate, text.len(), text
-                    );
-                    msg.token_count = msg.content.len() / 4;
-                    msg.binary_data = None;
-                    msg.modality = Some("text".into());
-                    total_saved += original_tokens.max(pdf_tokens).saturating_sub(msg.token_count);
+        for (i, img) in input.images.iter().enumerate() {
+            if img.mime.contains("pdf") || img.mime.contains("PDF") {
+                let original_tokens = img.original_tokens;
+                if let Some(text) = Self::try_pdftotext(&img.data) {
+                    let text_tokens = text.len() / 4;
+                    if text_tokens < original_tokens {
+                        total_saved += original_tokens.saturating_sub(text_tokens);
+                        extracted_texts.push(text);
+                        pdf_images.push(i);
+                    }
                 }
             }
+        }
+
+        // Remove processed PDF images (in reverse order to preserve indices)
+        for &i in pdf_images.iter().rev() {
+            input.images.remove(i);
+        }
+
+        // Add extracted text as system messages
+        for (idx, text) in extracted_texts.into_iter().enumerate() {
+            let content = format!("[PDF EXTRACT {}]\n{}", idx + 1, text);
+            let token_count = content.len() / 4;
+            input.messages.push(Message {
+                role: "system".into(),
+                content,
+                images: vec![],
+                tool_call_id: None,
+                token_count,
+            });
         }
 
         if total_saved > 0 {

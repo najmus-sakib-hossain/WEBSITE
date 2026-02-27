@@ -131,59 +131,67 @@ impl AudioSegmentSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for AudioSegmentSaver {
-    fn modality(&self) -> Modality { Modality::Audio }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for AudioSegmentSaver {
     fn name(&self) -> &str { "audio-segment" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 40 }
+    fn modality(&self) -> Modality { Modality::Audio }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let mut total_saved = 0usize;
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
 
-        for msg in &mut input.messages {
-            if msg.modality.as_deref() != Some("audio") { continue; }
-            let audio_bytes = match msg.binary_data.as_deref() {
-                Some(b) => b.to_vec(),
-                None => continue,
+        for audio in &mut input.audio {
+            if audio.duration_secs < 0.1 { continue; }
+
+            let format_str = match audio.format {
+                AudioFormat::Wav => "wav",
+                AudioFormat::Pcm16 => "pcm",
+                _ => "raw",
             };
-
-            let format = msg.content_type.as_deref().unwrap_or("raw");
-            let samples = AudioCompressSaver::decode_to_f32_pub(&audio_bytes, format);
+            let sample_rate = audio.sample_rate as usize;
+            let samples = AudioCompressSaver::decode_to_f32_pub(&audio.data, format_str);
             if samples.is_empty() { continue; }
 
-            let sample_rate = 16000usize;
-            let original_tokens = msg.token_count;
+            total_before += audio.naive_token_estimate;
             let segments = self.detect_segments(&samples, sample_rate);
-
             if segments.is_empty() { continue; }
 
             let description = self.extract_segments(&samples, &segments, sample_rate);
-            msg.content = description;
-            msg.token_count = msg.content.len() / 4;
-            msg.binary_data = None;
-            total_saved += original_tokens.saturating_sub(msg.token_count);
+            let compressed_tokens = description.len() / 4;
+            audio.data = description.into_bytes();
+            audio.compressed_tokens = compressed_tokens;
+            total_after += compressed_tokens;
         }
 
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "audio-segment".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
                 description: format!("silence removal saved {} tokens", total_saved),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

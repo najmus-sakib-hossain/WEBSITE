@@ -91,7 +91,7 @@ impl LiveEventTreeSaver {
         let secs_per_frame = 1.0 / 30.0;
 
         for (i, msg) in messages.iter().enumerate() {
-            if msg.modality.as_deref() != Some("live") { continue; }
+            // Process all non-system messages as live stream frames
 
             let t = i as f64 * secs_per_frame;
             let desc = msg.content.chars().take(80).collect::<String>();
@@ -124,11 +124,6 @@ impl LiveEventTreeSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for LiveEventTreeSaver {
-    fn modality(&self) -> Modality { Modality::Live }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for LiveEventTreeSaver {
     fn name(&self) -> &str { "live-event-tree" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -140,14 +135,17 @@ impl TokenSaver for LiveEventTreeSaver {
         let tree = self.ingest_frames(&input.messages);
         let summary = tree.tree_summary();
 
-        // Remove live messages, add tree summary
-        input.messages.retain(|m| m.modality.as_deref() != Some("live"));
+        // Retain only system messages, add tree summary
+        input.messages.retain(|m| m.role == "system");
 
-        let mut tree_msg = Message::default();
-        tree_msg.role = "system".into();
-        tree_msg.content = summary;
-        tree_msg.token_count = tree_msg.content.len() / 4;
-        input.messages.push(tree_msg);
+        let token_count = summary.len() / 4;
+        input.messages.push(Message {
+            role: "system".into(),
+            content: summary,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        });
 
         let after_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
         let saved = before_tokens.saturating_sub(after_tokens);

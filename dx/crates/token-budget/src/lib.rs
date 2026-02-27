@@ -58,7 +58,7 @@ impl TokenSaver for TokenBudgetSaver {
             .saturating_sub(self.config.output_reserve);
 
         let total: usize = input.messages.iter().map(|m| Self::count_tokens(&m.content)).sum::<usize>()
-            + input.tools.iter().map(|t| t.definition_tokens).sum::<usize>();
+            + input.tools.iter().map(|t| t.token_count).sum::<usize>();
 
         if (total as f64 / effective_max as f64) < self.config.warning_threshold {
             return Ok(SaverOutput {

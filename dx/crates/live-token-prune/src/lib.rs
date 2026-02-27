@@ -107,7 +107,7 @@ impl LiveTokenPruneSaver {
     pub fn compact_frame_description(regions: &[RegionSignature], active: &[bool], grid: usize) -> String {
         let active_count = active.iter().filter(|&&a| a).count();
         let mut desc = format!("[LIVE FRAME: {}/{} dynamic regions]\n", active_count, regions.len());
-        for ((r, &is_active), i) in regions.iter().zip(active.iter()).enumerate() {
+        for (i, (r, &is_active)) in regions.iter().zip(active.iter()).enumerate() {
             let gx = i % grid;
             let gy = i / grid;
             if is_active {
@@ -120,66 +120,71 @@ impl LiveTokenPruneSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for LiveTokenPruneSaver {
-    fn modality(&self) -> Modality { Modality::Live }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for LiveTokenPruneSaver {
     fn name(&self) -> &str { "live-token-prune" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 52 }
+    fn modality(&self) -> Modality { Modality::Live }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
         let mut prev_regions: Vec<RegionSignature> = Vec::new();
-        let mut total_saved = 0usize;
-        let mut new_images = Vec::new();
+        let mut total_before = 0usize;
+        let mut total_after = 0usize;
+        let mut kept_frames = Vec::new();
 
-        for img_bytes in &input.images {
-            let img = image::load_from_memory(img_bytes.as_slice())
-                .map_err(|e| SaverError::ProcessingError(e.to_string()))?;
+        for frame in &input.live_frames {
+            let img = image::load_from_memory(&frame.image_data)
+                .map_err(|e| SaverError::Failed(e.to_string()))?;
 
             let regions = Self::analyze_regions(&img, self.config.grid_size);
             let active = self.allocate_budget(&regions, &prev_regions);
             let description = Self::compact_frame_description(&regions, &active, self.config.grid_size);
 
-            let original_est = self.config.tokens_per_frame;
             let desc_tokens = description.len() / 4;
-            total_saved += original_est.saturating_sub(desc_tokens);
+            total_before += frame.token_estimate;
+            total_after += desc_tokens;
 
-            // Convert frame to compact annotated bytes
-            let mut buf = Vec::new();
-            img.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Jpeg).ok();
-            new_images.push(buf);
+            // Inject description as system message
+            input.base.messages.push(Message {
+                role: "system".into(),
+                content: description,
+                images: Vec::new(),
+                tool_call_id: None,
+                token_count: desc_tokens,
+            });
 
-            // Add description to messages
-            let mut note = Message::default();
-            note.role = "system".into();
-            note.content = description;
-            note.token_count = note.content.len() / 4;
-            input.messages.push(note);
-
+            kept_frames.push(frame.clone());
             prev_regions = regions;
         }
 
-        input.images = new_images;
-
+        let total_saved = total_before.saturating_sub(total_after);
         if total_saved > 0 {
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "live-token-prune".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
+                tokens_before: total_before,
+                tokens_after: total_after,
                 tokens_saved: total_saved,
-                description: format!("pruned live frame tokens, saved ~{}", total_saved),
+                description: format!("pruned live frame tokens: {} → {}", total_before, total_after),
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: kept_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

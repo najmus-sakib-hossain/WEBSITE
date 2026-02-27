@@ -67,11 +67,6 @@ impl VideoSceneSegmentSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for VideoSceneSegmentSaver {
-    fn modality(&self) -> Modality { Modality::Video }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for VideoSceneSegmentSaver {
     fn name(&self) -> &str { "video-scene-segment" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -90,7 +85,7 @@ impl TokenSaver for VideoSceneSegmentSaver {
         }
 
         let thumbs: Vec<Vec<u8>> = input.images.iter()
-            .map(|b| Self::thumb(b, self.config.thumbnail_size))
+            .map(|b| Self::thumb(&b.data, self.config.thumbnail_size))
             .collect();
 
         let mut scenes: Vec<Scene> = vec![Scene {
@@ -118,7 +113,7 @@ impl TokenSaver for VideoSceneSegmentSaver {
         scenes.last_mut().unwrap().end_frame = total - 1;
 
         // Keep one representative frame per scene
-        let new_images: Vec<Vec<u8>> = scenes.iter()
+        let new_images: Vec<ImageInput> = scenes.iter()
             .map(|s| input.images[s.representative_frame].clone())
             .collect();
         let kept = new_images.len();
@@ -132,11 +127,14 @@ impl TokenSaver for VideoSceneSegmentSaver {
             "[VIDEO SCENES: {} scenes from {} frames ({:.1}s)]",
             kept, total, duration
         );
-        let mut msg = Message::default();
-        msg.role = "system".into();
-        msg.content = annotation;
-        msg.token_count = msg.content.len() / 4;
-        input.messages.push(msg);
+        let token_count = annotation.len() / 4;
+        input.messages.push(Message {
+            role: "system".into(),
+            content: annotation,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        });
 
         if tokens_saved > 0 {
             let mut report = self.report.lock().unwrap();

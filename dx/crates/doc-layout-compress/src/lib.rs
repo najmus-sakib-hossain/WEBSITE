@@ -62,19 +62,15 @@ impl Default for DocLayoutCompressSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for DocLayoutCompressSaver {
-    fn modality(&self) -> Modality { Modality::Document }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for DocLayoutCompressSaver {
     fn name(&self) -> &str { "doc-layout-compress" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 66 }
 
     async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+        // Process messages that look like paginated docs (long user/system messages)
         let doc_msgs: Vec<usize> = input.messages.iter().enumerate()
-            .filter(|(_, m)| m.modality.as_deref() == Some("document"))
+            .filter(|(_, m)| (m.role == "user" || m.role == "system") && m.content.len() > 500)
             .map(|(i, _)| i)
             .collect();
 

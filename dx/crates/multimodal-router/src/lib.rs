@@ -51,28 +51,17 @@ impl MultimodalRouterSaver {
 
     /// Choose the optimal processing route for a message.
     pub fn choose_route(msg: &Message) -> RoutePath {
-        // Already text
-        if msg.modality.as_deref() == Some("text") || msg.binary_data.is_none() {
-            return RoutePath::Text;
-        }
-
-        let ct = msg.content_type.as_deref().unwrap_or("");
-
-        // PDF/document — prefer text extraction
-        if ct.contains("pdf") || ct.contains("doc") {
-            return RoutePath::Ocr;
-        }
-
-        // Image — check if OCR likely useful
-        if ct.starts_with("image/") || ct.contains("png") || ct.contains("jpeg") {
-            // Heuristic: if content has text markers, use OCR
-            if msg.content.contains("[text-heavy]") || msg.content.contains("screenshot") {
+        // Images attached → image route
+        if !msg.images.is_empty() {
+            // Screenshot/text-heavy content → suggest OCR
+            let lower = msg.content.to_lowercase();
+            if lower.contains("screenshot") || lower.contains("text-heavy") {
                 return RoutePath::Ocr;
             }
             return RoutePath::CompressedImage;
         }
-
-        RoutePath::RawImage
+        // Pure text message
+        RoutePath::Text
     }
 
     pub fn annotate_route(msg: &mut Message, route: &RoutePath) {
@@ -92,19 +81,19 @@ impl Default for MultimodalRouterSaver {
 
 #[async_trait::async_trait]
 impl MultiModalTokenSaver for MultimodalRouterSaver {
-    fn modality(&self) -> Modality { Modality::CrossModal }
-}
-
-#[async_trait::async_trait]
-impl TokenSaver for MultimodalRouterSaver {
     fn name(&self) -> &str { "multimodal-router" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 90 }
+    fn modality(&self) -> Modality { Modality::CrossModal }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process_multimodal(
+        &self,
+        mut input: MultiModalSaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<MultiModalSaverOutput, SaverError> {
         let mut routing_summary = Vec::new();
 
-        for msg in &mut input.messages {
+        for msg in &mut input.base.messages {
             let route = Self::choose_route(msg);
             if route != RoutePath::RawImage {
                 routing_summary.push(format!("{}: {}", msg.role, route.label()));
@@ -113,8 +102,7 @@ impl TokenSaver for MultimodalRouterSaver {
         }
 
         if !routing_summary.is_empty() {
-            let annotation = format!("[ROUTING DECISIONS: {}]", routing_summary.join("; "));
-            let savings_est: usize = input.messages.iter()
+            let savings_est: usize = input.base.messages.iter()
                 .filter(|m| m.content.contains("[ROUTE:"))
                 .map(|m| {
                     let route = Self::choose_route(m);
@@ -122,6 +110,7 @@ impl TokenSaver for MultimodalRouterSaver {
                 })
                 .sum();
 
+            let annotation = format!("[ROUTING DECISIONS: {}]", routing_summary.join("; "));
             let mut report = self.report.lock().unwrap();
             *report = TokenSavingsReport {
                 technique: "multimodal-router".into(),
@@ -132,12 +121,19 @@ impl TokenSaver for MultimodalRouterSaver {
             };
         }
 
-        Ok(SaverOutput {
-            messages: input.messages,
-            tools: input.tools,
-            images: input.images,
-            skipped: false,
-            cached_response: None,
+        Ok(MultiModalSaverOutput {
+            base: SaverOutput {
+                messages: input.base.messages,
+                tools: input.base.tools,
+                images: input.base.images,
+                skipped: false,
+                cached_response: None,
+            },
+            audio: input.audio,
+            live_frames: input.live_frames,
+            documents: input.documents,
+            videos: input.videos,
+            assets_3d: input.assets_3d,
         })
     }
 

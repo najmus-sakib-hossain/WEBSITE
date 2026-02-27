@@ -120,14 +120,16 @@ impl LiveKvCompressSaver {
                 EvictionPolicy::MergeSimilar => {
                     if let Some((i, j)) = mem.find_most_similar_pair() {
                         let b = mem.entries.remove(j).unwrap();
-                        if let Some(a) = mem.entries.get_mut(i) {
+                        let tokens_freed = if let Some(a) = mem.entries.get_mut(i) {
                             let merged = format!("{} | {}", a.summary, b.summary);
                             let new_tokens = merged.len() / 4;
-                            mem.total_tokens = mem.total_tokens.saturating_sub(a.tokens + b.tokens - new_tokens);
+                            let freed = a.tokens.saturating_add(b.tokens).saturating_sub(new_tokens);
                             a.tokens = new_tokens;
                             a.summary = merged;
                             a.saliency = a.saliency.max(b.saliency);
-                        }
+                            freed
+                        } else { 0 };
+                        mem.total_tokens = mem.total_tokens.saturating_sub(tokens_freed);
                     } else {
                         if let Some(removed) = mem.entries.pop_front() {
                             mem.total_tokens = mem.total_tokens.saturating_sub(removed.tokens);
@@ -152,11 +154,6 @@ impl LiveKvCompressSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for LiveKvCompressSaver {
-    fn modality(&self) -> Modality { Modality::Live }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for LiveKvCompressSaver {
     fn name(&self) -> &str { "live-kv-compress" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -165,9 +162,9 @@ impl TokenSaver for LiveKvCompressSaver {
     async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
         let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
 
-        // Ingest live stream messages into memory
+        // Ingest all non-system messages as live stream entries into memory
         let live_msgs: Vec<Message> = input.messages.drain(..)
-            .filter(|m| m.modality.as_deref() == Some("live"))
+            .filter(|m| m.role != "system")
             .collect();
 
         for (i, msg) in live_msgs.iter().enumerate() {
@@ -183,11 +180,14 @@ impl TokenSaver for LiveKvCompressSaver {
 
         // Replace live messages with compressed summary
         let summary = self.memory_summary();
-        let mut summary_msg = Message::default();
-        summary_msg.role = "system".into();
-        summary_msg.content = summary;
-        summary_msg.token_count = summary_msg.content.len() / 4;
-        input.messages.push(summary_msg);
+        let token_count = summary.len() / 4;
+        input.messages.push(Message {
+            role: "system".into(),
+            content: summary,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        });
 
         let after_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
         let saved = before_tokens.saturating_sub(after_tokens);

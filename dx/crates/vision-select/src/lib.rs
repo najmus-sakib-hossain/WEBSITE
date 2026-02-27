@@ -5,7 +5,7 @@
 use dx_core::*;
 use image::{DynamicImage, GrayImage, GenericImageView};
 use std::sync::Mutex;
-use vision_compress::estimate_tokens;
+use vision_compress::VisionCompressSaver;
 
 pub struct VisionSelectSaver {
     max_crops: usize,
@@ -119,13 +119,13 @@ impl TokenSaver for VisionSelectSaver {
         let mut new_images = Vec::new();
 
         for img_data in &input.images {
-            let decoded = image::load_from_memory(img_data.as_slice())
-                .map_err(|e| SaverError::ProcessingError(e.to_string()))?;
+            let decoded = image::load_from_memory(&img_data.data)
+                .map_err(|e| SaverError::Failed(e.to_string()))?;
 
-            let full_tokens = estimate_tokens(
+            let full_tokens = VisionCompressSaver::estimate_tokens(
                 decoded.width(),
                 decoded.height(),
-                vision_compress::Detail::High,
+                ImageDetail::High,
             );
 
             let rois = self.detect_rois(&decoded);
@@ -135,15 +135,22 @@ impl TokenSaver for VisionSelectSaver {
             }
 
             let mut crop_tokens = 0usize;
-            let mut selected_crops = Vec::new();
+            let mut selected_crops: Vec<ImageInput> = Vec::new();
 
             for roi in &rois {
                 let crop = decoded.crop_imm(roi.x, roi.y, roi.w, roi.h);
-                crop_tokens += estimate_tokens(crop.width(), crop.height(), vision_compress::Detail::Low);
+                let ct = VisionCompressSaver::estimate_tokens(crop.width(), crop.height(), ImageDetail::Low);
+                crop_tokens += ct;
                 let mut buf = Vec::new();
                 crop.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Jpeg)
-                    .map_err(|e| SaverError::ProcessingError(e.to_string()))?;
-                selected_crops.push(buf);
+                    .map_err(|e| SaverError::Failed(e.to_string()))?;
+                selected_crops.push(ImageInput {
+                    data: buf,
+                    mime: "image/jpeg".into(),
+                    detail: ImageDetail::Low,
+                    original_tokens: ct,
+                    processed_tokens: ct,
+                });
             }
 
             if crop_tokens < full_tokens {

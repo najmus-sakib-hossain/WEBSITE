@@ -53,11 +53,6 @@ impl VideoTemporalMergeSaver {
 }
 
 #[async_trait::async_trait]
-impl MultiModalTokenSaver for VideoTemporalMergeSaver {
-    fn modality(&self) -> Modality { Modality::Video }
-}
-
-#[async_trait::async_trait]
 impl TokenSaver for VideoTemporalMergeSaver {
     fn name(&self) -> &str { "video-temporal-merge" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
@@ -80,8 +75,8 @@ impl TokenSaver for VideoTemporalMergeSaver {
         let mut thumbs: Vec<Vec<u8>> = Vec::new();
 
         for (i, img_bytes) in input.images.iter().enumerate() {
-            let img = image::load_from_memory(img_bytes.as_slice())
-                .map_err(|e| SaverError::ProcessingError(e.to_string()))?;
+            let img = image::load_from_memory(&img_bytes.data)
+                .map_err(|e| SaverError::Failed(e.to_string()))?;;
             let t = Self::thumb(&img, self.config.thumbnail_size);
 
             if i == 0 {
@@ -117,11 +112,14 @@ impl TokenSaver for VideoTemporalMergeSaver {
             original_count as f64 / fps,
             total_saved / 1000
         );
-        let mut msg = Message::default();
-        msg.role = "system".into();
-        msg.content = annotation;
-        msg.token_count = msg.content.len() / 4;
-        input.messages.push(msg);
+        let token_count = annotation.len() / 4;
+        input.messages.push(Message {
+            role: "system".into(),
+            content: annotation,
+            images: vec![],
+            tool_call_id: None,
+            token_count,
+        });
         input.images = new_images;
 
         if total_saved > 0 {

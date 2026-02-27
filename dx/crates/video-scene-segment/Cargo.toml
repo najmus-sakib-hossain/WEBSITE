@@ -7,3 +7,4 @@ description = "Scene boundary detection for intelligent video budget allocation"
 [dependencies]
 dx-core = { workspace = true }
 async-trait = { workspace = true }
+image = { workspace = true }
