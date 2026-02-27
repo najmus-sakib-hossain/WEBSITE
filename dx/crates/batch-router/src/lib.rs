@@ -1,142 +1,112 @@
 //! # batch-router
 //!
-//! Routes eligible tasks to batch APIs for 50% cost reduction.
+//! Routes non-urgent tasks to the Batch API for 50% cost savings.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL — hard fact from OpenAI pricing)
+//! - OpenAI Batch API: 50% cost discount on inputs and outputs
+//! - Completes within 24 hours (often faster)
+//! - **Honest savings: 50% cost** (confirmed by OpenAI pricing page)
+//! - Caveat: keyword matching for batch eligibility is crude
 //!
-//! - **REAL**: Hard fact from OpenAI pricing page.
-//! - "Save 50% on inputs AND outputs with the Batch API."
-//! - Batch tasks complete within 24 hours (often faster).
-//! - Higher rate limits than synchronous API.
-//!
-//! ## Eligibility
-//! Tasks suitable for batching:
-//! - Background analysis / summarization
-//! - Bulk classification or tagging
-//! - Non-interactive code review
-//! - Report generation with no user waiting
-//! - Embedding generation for large document sets
-//!
-//! Tasks NOT suitable (require real-time response):
-//! - Interactive chat / agent loops
-//! - Tasks where the user is waiting
-//! - Streaming responses
-//!
-//! SAVINGS: 50% on all tokens (inputs + outputs) — hard fact
 //! STAGE: PreCall (priority 15)
 
 use dx_core::*;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BatchEligibility {
-    /// Eligible for batch API (50% savings)
-    Eligible,
-    /// Not eligible — requires real-time response
-    NotEligible,
-    /// Possibly eligible — depends on user-specified urgency
-    MaybeEligible,
+/// Whether a task should be batched.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BatchDecision {
+    /// Send via real-time API (user is waiting)
+    RealTime,
+    /// Send via Batch API (50% cost savings, ≤24h completion)
+    Batch,
 }
 
-/// Result of batch eligibility check.
+/// Configuration for batch routing.
 #[derive(Debug, Clone)]
-pub struct BatchDecision {
-    pub eligibility: BatchEligibility,
-    pub reason: String,
-    /// Estimated savings if batched (50% of total tokens if eligible)
-    pub estimated_savings_pct: u32,
+pub struct BatchRouterConfig {
+    /// Keywords suggesting the task is batch-eligible (non-urgent)
+    pub batch_keywords: Vec<String>,
+    /// Keywords suggesting real-time is needed
+    pub realtime_keywords: Vec<String>,
+    /// Minimum message count to consider batching (short conversations are interactive)
+    pub min_messages_for_batch: usize,
+    /// Whether to batch by default if no signals either way
+    pub default_to_batch: bool,
+}
+
+impl Default for BatchRouterConfig {
+    fn default() -> Self {
+        Self {
+            batch_keywords: vec![
+                "analyze".into(), "report".into(), "summarize all".into(),
+                "bulk".into(), "batch".into(), "background".into(),
+                "when you have time".into(), "no rush".into(),
+                "overnight".into(), "generate docs".into(),
+                "run tests".into(), "lint all".into(),
+                "process all".into(), "migrate".into(),
+            ],
+            realtime_keywords: vec![
+                "urgent".into(), "now".into(), "immediately".into(),
+                "asap".into(), "quick".into(), "help me".into(),
+                "fix this".into(), "error".into(), "broken".into(),
+                "debug".into(), "why".into(), "how".into(),
+            ],
+            min_messages_for_batch: 1,
+            default_to_batch: false,
+        }
+    }
 }
 
 pub struct BatchRouterSaver {
-    config: BatchConfig,
+    config: BatchRouterConfig,
+    last_decision: Mutex<Option<BatchDecision>>,
     report: Mutex<TokenSavingsReport>,
 }
 
-#[derive(Clone)]
-pub struct BatchConfig {
-    /// If true, router is in "interactive mode" — never route to batch
-    pub interactive_mode: bool,
-    /// Min token count to consider batching (small tasks aren't worth it)
-    pub min_tokens_for_batch: usize,
-}
-
-impl Default for BatchConfig {
-    fn default() -> Self {
-        Self {
-            interactive_mode: true, // conservative default: don't batch unless told to
-            min_tokens_for_batch: 500,
-        }
-    }
-}
-
 impl BatchRouterSaver {
-    pub fn new(config: BatchConfig) -> Self {
-        Self { config, report: Mutex::new(TokenSavingsReport::default()) }
+    pub fn new() -> Self {
+        Self::with_config(BatchRouterConfig::default())
     }
 
-    /// Check if task is eligible for batch API.
-    pub fn classify(&self, messages: &[Message]) -> BatchDecision {
-        if self.config.interactive_mode {
-            return BatchDecision {
-                eligibility: BatchEligibility::NotEligible,
-                reason: "interactive mode enabled — real-time response required".into(),
-                estimated_savings_pct: 0,
-            };
+    pub fn with_config(config: BatchRouterConfig) -> Self {
+        Self {
+            config,
+            last_decision: Mutex::new(None),
+            report: Mutex::new(TokenSavingsReport::default()),
         }
+    }
 
-        let total_tokens: usize = messages.iter().map(|m| m.token_count).sum();
-        if total_tokens < self.config.min_tokens_for_batch {
-            return BatchDecision {
-                eligibility: BatchEligibility::NotEligible,
-                reason: format!("task too small for batching ({} < {} tokens)", total_tokens, self.config.min_tokens_for_batch),
-                estimated_savings_pct: 0,
-            };
-        }
+    /// Get the last routing decision.
+    pub fn last_decision(&self) -> Option<BatchDecision> {
+        *self.last_decision.lock().unwrap()
+    }
 
-        let last_user = messages.iter().rev()
+    /// Classify whether the current task is batch-eligible.
+    fn classify(&self, messages: &[Message]) -> BatchDecision {
+        let user_text = messages.iter().rev()
             .find(|m| m.role == "user")
             .map(|m| m.content.to_lowercase())
             .unwrap_or_default();
 
-        // Signals suggesting background/batch-eligible work
-        let batch_signals = [
-            "analyze", "summarize", "classify", "categorize", "review all",
-            "generate report", "bulk", "batch", "process all", "list all",
-            "evaluate", "rank the", "score the", "tag the", "label the",
-        ];
+        let batch_signals: usize = self.config.batch_keywords.iter()
+            .filter(|kw| user_text.contains(kw.as_str()))
+            .count();
 
-        // Signals requiring real-time (user is waiting)
-        let realtime_signals = [
-            "quick", "asap", "immediately", "right now", "urgent",
-            "what is", "how do i", "help me", "can you", "please",
-        ];
+        let realtime_signals: usize = self.config.realtime_keywords.iter()
+            .filter(|kw| user_text.contains(kw.as_str()))
+            .count();
 
-        if realtime_signals.iter().any(|s| last_user.contains(s)) {
-            return BatchDecision {
-                eligibility: BatchEligibility::NotEligible,
-                reason: "real-time response signal detected".into(),
-                estimated_savings_pct: 0,
-            };
-        }
-
-        if batch_signals.iter().any(|s| last_user.contains(s)) {
-            return BatchDecision {
-                eligibility: BatchEligibility::Eligible,
-                reason: "background/batch-eligible task pattern detected".into(),
-                estimated_savings_pct: 50, // Hard fact: 50% on all tokens
-            };
-        }
-
-        BatchDecision {
-            eligibility: BatchEligibility::MaybeEligible,
-            reason: "no clear signal — set interactive_mode=false to enable batching".into(),
-            estimated_savings_pct: 0,
+        if realtime_signals > batch_signals {
+            BatchDecision::RealTime
+        } else if batch_signals > 0 && batch_signals > realtime_signals {
+            BatchDecision::Batch
+        } else if self.config.default_to_batch {
+            BatchDecision::Batch
+        } else {
+            BatchDecision::RealTime
         }
     }
-}
-
-impl Default for BatchRouterSaver {
-    fn default() -> Self { Self::new(BatchConfig::default()) }
 }
 
 #[async_trait::async_trait]
@@ -145,27 +115,40 @@ impl TokenSaver for BatchRouterSaver {
     fn stage(&self) -> SaverStage { SaverStage::PreCall }
     fn priority(&self) -> u32 { 15 }
 
-    async fn process(&self, input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let decision = self.classify(&input.messages);
-        let total_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
-        let estimated_tools: usize = input.tools.iter().map(|t| t.token_count).sum();
-        let total = total_tokens + estimated_tools;
-        let saved = (total as f64 * decision.estimated_savings_pct as f64 / 100.0) as usize;
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens = input.messages.iter().map(|m| m.token_count).sum::<usize>()
+            + input.tools.iter().map(|t| t.token_count).sum::<usize>();
 
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
-            technique: "batch-router".into(),
-            tokens_before: total,
-            tokens_after: total.saturating_sub(saved),
-            tokens_saved: saved,
-            description: format!(
-                "batch eligibility: {:?} — {}. potential {}% savings",
-                decision.eligibility, decision.reason, decision.estimated_savings_pct
-            ),
+        let decision = self.classify(&input.messages);
+        *self.last_decision.lock().unwrap() = Some(decision);
+
+        // Batch API gives 50% off on both input and output
+        let tokens_saved = if decision == BatchDecision::Batch {
+            tokens / 2 // 50% cost savings
+        } else {
+            0
         };
 
-        // Note: when Eligible, the caller should route to batch API.
-        // This saver itself doesn't make the API call — it annotates the pipeline.
+        let report = TokenSavingsReport {
+            technique: "batch-router".into(),
+            tokens_before: tokens,
+            tokens_after: tokens, // tokens don't change, cost does
+            tokens_saved,
+            description: match decision {
+                BatchDecision::Batch => format!(
+                    "Routed to Batch API: 50% cost savings (~{} tokens equivalent). \
+                     Task appears non-urgent. Completes within 24h.",
+                    tokens_saved
+                ),
+                BatchDecision::RealTime => "Real-time API: task requires immediate response.".into(),
+            },
+        };
+        *self.report.lock().unwrap() = report;
+
         Ok(SaverOutput {
             messages: input.messages,
             tools: input.tools,
@@ -185,42 +168,34 @@ mod tests {
     use super::*;
 
     fn user_msg(content: &str) -> Message {
-        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: 200 }
+        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: content.len() / 4 }
     }
 
-    #[test]
-    fn interactive_mode_never_batches() {
-        let router = BatchRouterSaver::new(BatchConfig { interactive_mode: true, min_tokens_for_batch: 100 });
-        let msgs = vec![user_msg("analyze all these documents")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.eligibility, BatchEligibility::NotEligible);
+    #[tokio::test]
+    async fn test_batch_eligible() {
+        let saver = BatchRouterSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![user_msg("please generate docs for all modules in the background when you have time")],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let _ = saver.process(input, &ctx).await.unwrap();
+        assert_eq!(saver.last_decision(), Some(BatchDecision::Batch));
     }
 
-    #[test]
-    fn batch_mode_classifies_analysis_as_eligible() {
-        let router = BatchRouterSaver::new(BatchConfig { interactive_mode: false, min_tokens_for_batch: 100 });
-        let msgs = vec![user_msg("analyze and categorize all 500 support tickets")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.eligibility, BatchEligibility::Eligible);
-        assert_eq!(d.estimated_savings_pct, 50);
-    }
-
-    #[test]
-    fn urgent_tasks_not_batched() {
-        let router = BatchRouterSaver::new(BatchConfig { interactive_mode: false, min_tokens_for_batch: 100 });
-        let msgs = vec![user_msg("urgent! analyze this immediately")];
-        let d = router.classify(&msgs);
-        assert_eq!(d.eligibility, BatchEligibility::NotEligible);
-    }
-
-    #[test]
-    fn savings_are_50_percent() {
-        // Verify the hard fact: batch API = 50% off
-        let router = BatchRouterSaver::new(BatchConfig { interactive_mode: false, min_tokens_for_batch: 100 });
-        let msgs = vec![user_msg("summarize these 1000 documents in bulk")];
-        let d = router.classify(&msgs);
-        if d.eligibility == BatchEligibility::Eligible {
-            assert_eq!(d.estimated_savings_pct, 50, "batch API is exactly 50% off per OpenAI pricing");
-        }
+    #[tokio::test]
+    async fn test_realtime_urgent() {
+        let saver = BatchRouterSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![user_msg("help me fix this error now, it's broken")],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let _ = saver.process(input, &ctx).await.unwrap();
+        assert_eq!(saver.last_decision(), Some(BatchDecision::RealTime));
     }
 }

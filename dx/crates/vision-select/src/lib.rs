@@ -1,110 +1,197 @@
-//! Selects high-information regions from images rather than full image.
-//! SAVINGS: 40-80% vs sending full image
+//! # vision-select
+//!
+//! Adaptive two-pass vision token selection: low-detail overview first,
+//! then high-detail crops of regions of interest (ROIs).
+//!
+//! ## Evidence (TOKEN.md 🤷 Unproven)
+//! - Concept is real (two-pass: overview → targeted crops)
+//! - Grid-based edge density is crude; many important regions have low edges
+//! - Adding multiple images (overview + crops) has its own overhead
+//! - **Needs real testing before claiming 60-80%**
+//! - This implementation is experimental/proof-of-concept
+//!
 //! STAGE: PrePrompt (priority 8)
 
 use dx_core::*;
-use image::{DynamicImage, GrayImage, GenericImageView};
 use std::sync::Mutex;
-use vision_compress::VisionCompressSaver;
+
+/// A region of interest in an image.
+#[derive(Debug, Clone)]
+pub struct Roi {
+    /// X offset (pixels)
+    pub x: u32,
+    /// Y offset (pixels)  
+    pub y: u32,
+    /// Width (pixels)
+    pub width: u32,
+    /// Height (pixels)
+    pub height: u32,
+    /// Interest score (0.0-1.0)
+    pub score: f64,
+}
+
+/// Configuration for vision selection.
+#[derive(Debug, Clone)]
+pub struct VisionSelectConfig {
+    /// Grid size for ROI detection
+    pub grid_size: u32,
+    /// Minimum interest score to include a crop
+    pub min_roi_score: f64,
+    /// Maximum number of high-detail crop regions
+    pub max_crops: usize,
+    /// Minimum image tokens before two-pass is worthwhile
+    pub min_image_tokens: usize,
+    /// Target resolution for ROI crops
+    pub crop_size: u32,
+}
+
+impl Default for VisionSelectConfig {
+    fn default() -> Self {
+        Self {
+            grid_size: 4,
+            min_roi_score: 0.3,
+            max_crops: 3,
+            min_image_tokens: 400,
+            crop_size: 512,
+        }
+    }
+}
 
 pub struct VisionSelectSaver {
-    max_crops: usize,
+    config: VisionSelectConfig,
     report: Mutex<TokenSavingsReport>,
 }
 
-#[derive(Debug, Clone)]
-struct Region {
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
-    score: f64,
-}
-
 impl VisionSelectSaver {
-    pub fn new(max_crops: usize) -> Self {
+    pub fn new() -> Self {
+        Self::with_config(VisionSelectConfig::default())
+    }
+
+    pub fn with_config(config: VisionSelectConfig) -> Self {
         Self {
-            max_crops,
+            config,
             report: Mutex::new(TokenSavingsReport::default()),
         }
     }
 
-    pub fn with_defaults() -> Self {
-        Self::new(3)
-    }
-
-    /// Detect regions-of-interest via 4×4 grid edge analysis.
-    pub fn detect_rois(&self, img: &DynamicImage) -> Vec<Region> {
+    /// Detect regions of interest using edge density + variance analysis.
+    /// This is a simple proof-of-concept; production should use a proper detector.
+    fn detect_rois(&self, img: &image::DynamicImage) -> Vec<Roi> {
         let gray = img.to_luma8();
-        let (width, height) = gray.dimensions();
-        let grid = 4usize;
-        let cell_w = width / grid as u32;
-        let cell_h = height / grid as u32;
+        let (w, h) = (gray.width(), gray.height());
+        if w < self.config.grid_size || h < self.config.grid_size {
+            return vec![];
+        }
 
-        let mut regions = Vec::new();
+        let cell_w = w / self.config.grid_size;
+        let cell_h = h / self.config.grid_size;
+        let mut rois = Vec::new();
 
-        for gy in 0..grid {
-            for gx in 0..grid {
-                let x = gx as u32 * cell_w;
-                let y = gy as u32 * cell_h;
+        for gy in 0..self.config.grid_size {
+            for gx in 0..self.config.grid_size {
+                let x0 = gx * cell_w;
+                let y0 = gy * cell_h;
 
-                let score = self.cell_edge_density(&gray, x, y, cell_w, cell_h);
-                regions.push(Region { x, y, w: cell_w, h: cell_h, score });
+                // Calculate edge density and variance for this cell
+                let mut edge_count = 0u64;
+                let mut sum = 0u64;
+                let mut sum_sq = 0u64;
+                let mut pixel_count = 0u64;
+
+                for y in y0..(y0 + cell_h).min(h) {
+                    for x in x0..(x0 + cell_w).min(w) {
+                        let val = gray.get_pixel(x, y)[0] as u64;
+                        sum += val;
+                        sum_sq += val * val;
+                        pixel_count += 1;
+
+                        // Edge detection (simple gradient)
+                        if x > 0 {
+                            let diff = (val as i64 - gray.get_pixel(x - 1, y)[0] as i64).unsigned_abs();
+                            if diff > 25 { edge_count += 1; }
+                        }
+                        if y > 0 {
+                            let diff = (val as i64 - gray.get_pixel(x, y - 1)[0] as i64).unsigned_abs();
+                            if diff > 25 { edge_count += 1; }
+                        }
+                    }
+                }
+
+                if pixel_count == 0 { continue; }
+                let mean = sum as f64 / pixel_count as f64;
+                let variance = (sum_sq as f64 / pixel_count as f64) - mean * mean;
+                let edge_density = edge_count as f64 / pixel_count as f64;
+
+                // Score combines edge density and variance (both indicate content)
+                let score = (edge_density * 5.0 + (variance.sqrt() / 128.0)).min(1.0);
+
+                if score >= self.config.min_roi_score {
+                    rois.push(Roi {
+                        x: x0,
+                        y: y0,
+                        width: cell_w,
+                        height: cell_h,
+                        score,
+                    });
+                }
             }
         }
 
-        regions.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        regions.truncate(self.max_crops * 2);
-        let merged = self.merge_adjacent(regions);
-        merged.into_iter().take(self.max_crops).collect()
+        // Sort by score descending and take top N
+        rois.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        rois.truncate(self.config.max_crops);
+        rois
     }
 
-    fn cell_edge_density(&self, gray: &GrayImage, x: u32, y: u32, w: u32, h: u32) -> f64 {
-        let mut edge_count = 0u64;
-        let mut total = 0u64;
-        for py in y..y.saturating_add(h).min(gray.height() - 1) {
-            for px in x..x.saturating_add(w).min(gray.width() - 1) {
-                let v = gray.get_pixel(px, py).0[0] as i32;
-                let vr = gray.get_pixel(px + 1, py).0[0] as i32;
-                let vd = gray.get_pixel(px, py + 1).0[0] as i32;
-                let grad = (vr - v).abs() + (vd - v).abs();
-                if grad > 20 { edge_count += 1; }
-                total += 1;
-            }
+    /// Process a single image: create overview + ROI crops.
+    fn process_image(&self, img_input: &ImageInput) -> Result<Vec<ImageInput>, SaverError> {
+        if img_input.original_tokens < self.config.min_image_tokens {
+            return Ok(vec![img_input.clone()]);
         }
-        if total == 0 { 0.0 } else { edge_count as f64 / total as f64 }
-    }
 
-    fn are_adjacent(&self, a: &Region, b: &Region) -> bool {
-        let ax2 = a.x + a.w;
-        let ay2 = a.y + a.h;
-        let bx2 = b.x + b.w;
-        let by2 = b.y + b.h;
-        let overlap_x = a.x < bx2 && ax2 > b.x;
-        let overlap_y = a.y < by2 && ay2 > b.y;
-        let touch_x = ax2 == b.x || bx2 == a.x;
-        let touch_y = ay2 == b.y || by2 == a.y;
-        (overlap_x && touch_y) || (overlap_y && touch_x)
-    }
+        let img = image::load_from_memory(&img_input.data)
+            .map_err(|e| SaverError::Failed(format!("Image decode failed: {}", e)))?;
 
-    fn merge_adjacent(&self, mut regions: Vec<Region>) -> Vec<Region> {
-        if regions.len() <= 1 { return regions; }
-        let mut merged = vec![regions.remove(0)];
-        for r in regions {
-            let adj = merged.iter_mut().find(|m| self.are_adjacent(m, &r));
-            if let Some(m) = adj {
-                let x = m.x.min(r.x);
-                let y = m.y.min(r.y);
-                let x2 = (m.x + m.w).max(r.x + r.w);
-                let y2 = (m.y + m.h).max(r.y + r.h);
-                m.x = x; m.y = y;
-                m.w = x2 - x; m.h = y2 - y;
-                m.score = m.score.max(r.score);
+        // 1. Create low-detail overview (85 tokens flat)
+        let overview = ImageInput {
+            data: img_input.data.clone(),
+            mime: img_input.mime.clone(),
+            detail: ImageDetail::Low,
+            original_tokens: img_input.original_tokens,
+            processed_tokens: 85,
+        };
+
+        // 2. Detect ROIs and create crops
+        let rois = self.detect_rois(&img);
+        let mut result = vec![overview];
+
+        for roi in &rois {
+            let cropped = img.crop_imm(roi.x, roi.y, roi.width, roi.height);
+            let resized = if roi.width > self.config.crop_size || roi.height > self.config.crop_size {
+                cropped.resize(
+                    self.config.crop_size,
+                    self.config.crop_size,
+                    image::imageops::FilterType::Lanczos3,
+                )
             } else {
-                merged.push(r);
-            }
+                cropped
+            };
+
+            let mut buf = std::io::Cursor::new(Vec::new());
+            resized.write_to(&mut buf, image::ImageFormat::Jpeg)
+                .map_err(|e| SaverError::Failed(format!("JPEG encode: {}", e)))?;
+
+            let crop_tokens = 170 + 85; // 1 tile + base (512×512 crop)
+            result.push(ImageInput {
+                data: buf.into_inner(),
+                mime: "image/jpeg".into(),
+                detail: ImageDetail::High,
+                original_tokens: 0, // crop, not original
+                processed_tokens: crop_tokens,
+            });
         }
-        merged
+
+        Ok(result)
     }
 }
 
@@ -114,70 +201,50 @@ impl TokenSaver for VisionSelectSaver {
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
     fn priority(&self) -> u32 { 8 }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let mut total_saved = 0usize;
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.images.iter().map(|i| i.original_tokens).sum();
         let mut new_images = Vec::new();
+        let mut processed_count = 0usize;
 
-        for img_data in &input.images {
-            let decoded = image::load_from_memory(&img_data.data)
-                .map_err(|e| SaverError::Failed(e.to_string()))?;
-
-            let full_tokens = VisionCompressSaver::estimate_tokens(
-                decoded.width(),
-                decoded.height(),
-                ImageDetail::High,
-            );
-
-            let rois = self.detect_rois(&decoded);
-            if rois.is_empty() {
-                new_images.push(img_data.clone());
-                continue;
+        for img in &input.images {
+            match self.process_image(img) {
+                Ok(images) => {
+                    if images.len() > 1 { processed_count += 1; }
+                    new_images.extend(images);
+                }
+                Err(_) => new_images.push(img.clone()),
             }
+        }
 
-            let mut crop_tokens = 0usize;
-            let mut selected_crops: Vec<ImageInput> = Vec::new();
+        let tokens_after: usize = new_images.iter().map(|i| i.processed_tokens).sum();
+        let tokens_saved = tokens_before.saturating_sub(tokens_after);
+        let pct = if tokens_before > 0 { tokens_saved as f64 / tokens_before as f64 * 100.0 } else { 0.0 };
 
-            for roi in &rois {
-                let crop = decoded.crop_imm(roi.x, roi.y, roi.w, roi.h);
-                let ct = VisionCompressSaver::estimate_tokens(crop.width(), crop.height(), ImageDetail::Low);
-                crop_tokens += ct;
-                let mut buf = Vec::new();
-                crop.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Jpeg)
-                    .map_err(|e| SaverError::Failed(e.to_string()))?;
-                selected_crops.push(ImageInput {
-                    data: buf,
-                    mime: "image/jpeg".into(),
-                    detail: ImageDetail::Low,
-                    original_tokens: ct,
-                    processed_tokens: ct,
-                });
-            }
-
-            if crop_tokens < full_tokens {
-                total_saved += full_tokens.saturating_sub(crop_tokens);
-                new_images.extend(selected_crops);
+        let report = TokenSavingsReport {
+            technique: "vision-select".into(),
+            tokens_before,
+            tokens_after,
+            tokens_saved,
+            description: if processed_count > 0 {
+                format!(
+                    "Two-pass vision on {} images: {} → {} tokens ({:.1}% saved). \
+                     EXPERIMENTAL: ROI detection needs real-world validation.",
+                    processed_count, tokens_before, tokens_after, pct
+                )
             } else {
-                new_images.push(img_data.clone());
-            }
-        }
-
-        input.images = new_images;
-
-        if total_saved > 0 {
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
-                technique: "vision-select".into(),
-                tokens_before: total_saved,
-                tokens_after: 0,
-                tokens_saved: total_saved,
-                description: format!("ROI crop selection saved {} tokens", total_saved),
-            };
-        }
+                "No images suitable for two-pass vision selection.".into()
+            },
+        };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
             messages: input.messages,
             tools: input.tools,
-            images: input.images,
+            images: new_images,
             skipped: false,
             cached_response: None,
         })
@@ -185,5 +252,24 @@ impl TokenSaver for VisionSelectSaver {
 
     fn last_savings(&self) -> TokenSavingsReport {
         self.report.lock().unwrap().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_skip_small_images() {
+        let saver = VisionSelectSaver::new();
+        let img = ImageInput {
+            data: vec![],
+            mime: "image/png".into(),
+            detail: ImageDetail::High,
+            original_tokens: 100,
+            processed_tokens: 100,
+        };
+        let result = saver.process_image(&img).unwrap();
+        assert_eq!(result.len(), 1); // returned as-is
     }
 }

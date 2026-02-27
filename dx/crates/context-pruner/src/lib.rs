@@ -1,76 +1,72 @@
-//! Prunes stale context from conversation history.
-//! SAVINGS: 20-40% on multi-turn conversations
-//! STAGE: InterTurn (priority 20)
+//! # context-pruner
+//!
+//! Removes stale, irrelevant context from conversation history —
+//! file reads from 10 turns ago that are no longer relevant.
+//!
+//! ## Evidence (TOKEN.md ✅ REAL)
+//! - Removing stale tool outputs is safe and effective
+//! - **Honest savings: 20-40%** (honest range)
+//!
+//! STAGE: InterTurn (priority 10)
 
 use dx_core::*;
 use std::sync::Mutex;
 
+/// Configuration for context pruning.
+#[derive(Debug, Clone)]
+pub struct ContextPrunerConfig {
+    /// Tool outputs older than this many turns get pruned
+    pub stale_turn_threshold: usize,
+    /// Messages under this token count are kept regardless
+    pub min_tokens_to_prune: usize,
+    /// Keep at most N tool outputs total in history
+    pub max_tool_outputs: usize,
+    /// Roles that should never be pruned
+    pub protected_roles: Vec<String>,
+    /// Always keep the most recent N messages
+    pub protect_recent: usize,
+}
+
+impl Default for ContextPrunerConfig {
+    fn default() -> Self {
+        Self {
+            stale_turn_threshold: 5,
+            min_tokens_to_prune: 100,
+            max_tool_outputs: 20,
+            protected_roles: vec!["system".into()],
+            protect_recent: 6,
+        }
+    }
+}
+
 pub struct ContextPrunerSaver {
-    preserve_recent: usize,
+    config: ContextPrunerConfig,
     report: Mutex<TokenSavingsReport>,
 }
 
 impl ContextPrunerSaver {
     pub fn new() -> Self {
+        Self::with_config(ContextPrunerConfig::default())
+    }
+
+    pub fn with_config(config: ContextPrunerConfig) -> Self {
         Self {
-            preserve_recent: 4,
+            config,
             report: Mutex::new(TokenSavingsReport::default()),
         }
     }
 
-    pub fn with_preserve_recent(n: usize) -> Self {
-        Self {
-            preserve_recent: n,
-            report: Mutex::new(TokenSavingsReport::default()),
-        }
-    }
-
-    fn is_stale_read(msg: &Message, later_messages: &[Message]) -> bool {
-        if msg.role != "tool" && msg.tool_call_id.is_none() {
-            return false;
-        }
-        let path = Self::extract_path(&msg.content);
-        let path = match path {
-            Some(p) => p,
-            None => return false,
-        };
-        later_messages.iter().any(|m| {
-            let content_lower = m.content.to_lowercase();
-            content_lower.contains(&path) && (
-                content_lower.contains("updated")
-                    || content_lower.contains("patched")
-                    || content_lower.contains("created")
-                    || content_lower.contains("wrote")
-                    || content_lower.contains("modified")
-            )
-        })
-    }
-
-    fn is_trivial_success(msg: &Message) -> bool {
-        if msg.role != "tool" && msg.tool_call_id.is_none() {
-            return false;
-        }
-        let c = &msg.content;
-        msg.token_count < 15 && (
-            c.contains("created") || c.contains("updated")
-                || c.contains("patched") || c.starts_with("ok")
-        )
-    }
-
-    pub fn extract_path(content: &str) -> Option<String> {
-        for word in content.split_whitespace() {
-            let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '/' && c != '.' && c != '_' && c != '-');
-            if clean.contains('/') && clean.contains('.') && clean.len() > 3 {
-                return Some(clean.to_lowercase());
+    /// Infer turn number for each message based on user message count.
+    fn message_turns(messages: &[Message]) -> Vec<usize> {
+        let mut turns = Vec::with_capacity(messages.len());
+        let mut current_turn = 0usize;
+        for msg in messages {
+            if msg.role == "user" {
+                current_turn += 1;
             }
+            turns.push(current_turn);
         }
-        None
-    }
-}
-
-impl Default for ContextPrunerSaver {
-    fn default() -> Self {
-        Self::new()
+        turns
     }
 }
 
@@ -78,51 +74,93 @@ impl Default for ContextPrunerSaver {
 impl TokenSaver for ContextPrunerSaver {
     fn name(&self) -> &str { "context-pruner" }
     fn stage(&self) -> SaverStage { SaverStage::InterTurn }
-    fn priority(&self) -> u32 { 20 }
+    fn priority(&self) -> u32 { 10 }
 
-    async fn process(&self, input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
+    async fn process(
+        &self,
+        input: SaverInput,
+        ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let msg_turns = Self::message_turns(&input.messages);
+        let current_turn = ctx.turn_number;
         let msg_count = input.messages.len();
-        let preserve_from = msg_count.saturating_sub(self.preserve_recent * 2);
-        let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let protected_start = msg_count.saturating_sub(self.config.protect_recent);
 
-        let mut pruned = Vec::new();
-        let mut total_saved = 0usize;
+        let mut messages = Vec::new();
+        let mut pruned_count = 0usize;
+        let mut tool_output_count = 0usize;
 
-        for (i, msg) in input.messages.iter().enumerate() {
-            let is_recent = i >= preserve_from;
+        for (i, msg) in input.messages.into_iter().enumerate() {
+            let msg_turn = msg_turns[i];
 
-            if msg.role == "system" || is_recent {
-                pruned.push(msg.clone());
+            // Never prune protected roles or recent messages
+            if self.config.protected_roles.contains(&msg.role) || i >= protected_start {
+                if msg.role == "tool" { tool_output_count += 1; }
+                messages.push(msg);
                 continue;
             }
 
-            let later = &input.messages[i + 1..];
-            if Self::is_stale_read(msg, later) {
-                total_saved += msg.token_count;
+            // Prune stale tool outputs
+            if msg.role == "tool"
+                && current_turn.saturating_sub(msg_turn) > self.config.stale_turn_threshold
+                && msg.token_count >= self.config.min_tokens_to_prune
+            {
+                // Replace with a slim reference
+                pruned_count += 1;
+                messages.push(Message {
+                    role: msg.role,
+                    content: format!("[Previous tool output pruned — {} tokens, turn {}]", msg.token_count, msg_turn),
+                    images: vec![],
+                    tool_call_id: msg.tool_call_id,
+                    token_count: 15,
+                });
                 continue;
             }
 
-            if !Self::is_trivial_success(msg) {
-                pruned.push(msg.clone());
+            // Enforce max tool outputs
+            if msg.role == "tool" {
+                tool_output_count += 1;
+                if tool_output_count > self.config.max_tool_outputs {
+                    pruned_count += 1;
+                    messages.push(Message {
+                        role: msg.role,
+                        content: format!("[Tool output pruned — exceeded {} limit]", self.config.max_tool_outputs),
+                        images: vec![],
+                        tool_call_id: msg.tool_call_id,
+                        token_count: 10,
+                    });
+                    continue;
+                }
+            }
+
+            messages.push(msg);
+        }
+
+        let tokens_after: usize = messages.iter().map(|m| m.token_count).sum();
+        let tokens_saved = tokens_before.saturating_sub(tokens_after);
+        let pct = if tokens_before > 0 { tokens_saved as f64 / tokens_before as f64 * 100.0 } else { 0.0 };
+
+        let report = TokenSavingsReport {
+            technique: "context-pruner".into(),
+            tokens_before,
+            tokens_after,
+            tokens_saved,
+            description: if pruned_count > 0 {
+                format!(
+                    "Pruned {} stale context entries: {} → {} tokens ({:.1}% saved). \
+                     Threshold: {} turns stale. Protected {} recent messages.",
+                    pruned_count, tokens_before, tokens_after, pct,
+                    self.config.stale_turn_threshold, self.config.protect_recent
+                )
             } else {
-                total_saved += msg.token_count;
-            }
-        }
-
-        if total_saved > 0 {
-            let after_tokens: usize = pruned.iter().map(|m| m.token_count).sum();
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
-                technique: "context-pruner".into(),
-                tokens_before: before_tokens,
-                tokens_after: after_tokens,
-                tokens_saved: total_saved,
-                description: format!("pruned {} stale/trivial tokens from history", total_saved),
-            };
-        }
+                "No stale context to prune.".into()
+            },
+        };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: pruned,
+            messages,
             tools: input.tools,
             images: input.images,
             skipped: false,
@@ -132,5 +170,48 @@ impl TokenSaver for ContextPrunerSaver {
 
     fn last_savings(&self) -> TokenSavingsReport {
         self.report.lock().unwrap().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn msg(role: &str, content: &str, tokens: usize) -> Message {
+        Message {
+            role: role.into(),
+            content: content.into(),
+            images: vec![],
+            tool_call_id: if role == "tool" { Some("tc_1".into()) } else { None },
+            token_count: tokens,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_prune_stale_tool_outputs() {
+        let config = ContextPrunerConfig {
+            stale_turn_threshold: 2,
+            protect_recent: 2,
+            ..Default::default()
+        };
+        let saver = ContextPrunerSaver::with_config(config);
+        let ctx = SaverContext { turn_number: 10, ..Default::default() };
+        let input = SaverInput {
+            messages: vec![
+                msg("system", "sys", 50),
+                msg("user", "q1", 20),
+                msg("tool", "old tool output with lots of content", 500),
+                msg("user", "q2", 20),
+                msg("tool", "another old tool output", 300),
+                msg("user", "recent q", 20),
+                msg("assistant", "recent answer", 50),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 10,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert!(saver.last_savings().tokens_saved > 0);
+        assert!(out.messages.iter().any(|m| m.content.contains("pruned")));
     }
 }

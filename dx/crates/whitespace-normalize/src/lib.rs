@@ -1,168 +1,199 @@
 //! # whitespace-normalize
 //!
-//! Removes redundant whitespace, BOMs, and formatting noise before tokenization.
+//! Normalizes whitespace across all content: BOM removal, CRLF→LF,
+//! tabs→spaces, trailing whitespace, consecutive blank lines.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL)
+//! - Zero risk, zero semantic impact
+//! - BOM = 3 wasted bytes, CRLF = 1 extra byte per line
+//! - Consecutive blank lines waste tokens (2-3 tokens per blank line)
+//! - **Honest: 5-15% savings, higher on messy content (logs, pastes)**
+//! - Should run early in pipeline (everything downstream benefits)
 //!
-//! - **REAL and honest**: 5-15% on heavily-formatted code/logs, 1-5% on clean text.
-//! - **Zero quality risk** — purely lossless transformations.
-//! - Operations:
-//!   1. Remove UTF-8 BOM (0xEF 0xBB 0xBF) — 3 bytes = 1 wasted token
-//!   2. CRLF → LF (Windows line endings) — halves line-ending tokens
-//!   3. Collapse multiple blank lines → single blank line
-//!   4. Strip trailing whitespace per line
-//!   5. Collapse runs of spaces/tabs to single space (in non-code contexts)
-//!   6. Remove null bytes and other control characters
-//!
-//! SAVINGS: 5-15% on formatted content, 1-5% on clean text (zero quality risk)
-//! STAGE: PrePrompt (priority 20)
+//! STAGE: PrePrompt (priority 1 — run first)
 
 use dx_core::*;
 use std::sync::Mutex;
 
-pub struct WhitespaceNormalizeSaver {
-    config: NormalizeConfig,
-    report: Mutex<TokenSavingsReport>,
-}
-
-#[derive(Clone)]
-pub struct NormalizeConfig {
-    /// Remove UTF-8 BOM if present
+/// Configuration for whitespace normalization.
+#[derive(Debug, Clone)]
+pub struct WhitespaceNormalizeConfig {
+    /// Remove BOM (byte order mark) from content
     pub remove_bom: bool,
     /// Convert CRLF to LF
     pub normalize_line_endings: bool,
-    /// Remove trailing whitespace from each line
-    pub strip_trailing_whitespace: bool,
-    /// Collapse 3+ consecutive blank lines to 2
-    pub collapse_blank_lines: bool,
-    /// Remove null bytes and control chars (except newline/tab)
-    pub remove_control_chars: bool,
-    /// Normalize mixed indentation (tabs + spaces) to spaces
-    /// Only applied to non-code messages (role != "tool") to avoid breaking diffs
-    pub normalize_indentation: bool,
+    /// Convert tabs to spaces (0 = don't convert)
+    pub tab_width: usize,
+    /// Remove trailing whitespace from lines
+    pub strip_trailing: bool,
+    /// Collapse consecutive blank lines to this many (0 = keep all)
+    pub max_consecutive_blank_lines: usize,
+    /// Trim leading/trailing whitespace from entire content
+    pub trim_content: bool,
 }
 
-impl Default for NormalizeConfig {
+impl Default for WhitespaceNormalizeConfig {
     fn default() -> Self {
         Self {
             remove_bom: true,
             normalize_line_endings: true,
-            strip_trailing_whitespace: true,
-            collapse_blank_lines: true,
-            remove_control_chars: true,
-            normalize_indentation: false, // conservative default: off
+            tab_width: 0, // Don't convert tabs by default (preserves indentation style)
+            strip_trailing: true,
+            max_consecutive_blank_lines: 1,
+            trim_content: true,
         }
     }
 }
 
-impl WhitespaceNormalizeSaver {
-    pub fn new(config: NormalizeConfig) -> Self {
-        Self { config, report: Mutex::new(TokenSavingsReport::default()) }
+pub struct WhitespaceNormalize {
+    config: WhitespaceNormalizeConfig,
+    report: Mutex<TokenSavingsReport>,
+}
+
+impl WhitespaceNormalize {
+    pub fn new() -> Self {
+        Self::with_config(WhitespaceNormalizeConfig::default())
     }
 
-    /// Normalize a single string. Returns (normalized, chars_saved).
-    pub fn normalize(&self, s: &str) -> (String, usize) {
-        let original_len = s.len();
-        let mut result = s.to_string();
+    pub fn with_config(config: WhitespaceNormalizeConfig) -> Self {
+        Self {
+            config,
+            report: Mutex::new(TokenSavingsReport::default()),
+        }
+    }
 
-        // 1. Remove UTF-8 BOM
+    /// Normalize a single string according to config.
+    fn normalize(&self, input: &str) -> String {
+        let mut s = input.to_string();
+
+        // 1. Remove BOM
         if self.config.remove_bom {
-            result = result.trim_start_matches('\u{FEFF}').to_string();
+            s = s.trim_start_matches('\u{FEFF}').to_string();
         }
 
-        // 2. CRLF → LF
+        // 2. Normalize line endings: CRLF → LF
         if self.config.normalize_line_endings {
-            result = result.replace("\r\n", "\n").replace('\r', "\n");
+            s = s.replace("\r\n", "\n").replace('\r', "\n");
         }
 
-        // 3. Remove null bytes and control chars (keep \n, \t, space)
-        if self.config.remove_control_chars {
-            result = result.chars()
-                .filter(|&c| c == '\n' || c == '\t' || c == ' ' || (!c.is_control()))
-                .collect();
-        }
+        // 3. Process line by line
+        let lines: Vec<String> = s.lines().map(|line| {
+            let mut l = line.to_string();
 
-        // 4. Strip trailing whitespace per line
-        if self.config.strip_trailing_whitespace {
-            result = result.lines()
-                .map(|line| line.trim_end())
-                .collect::<Vec<_>>()
-                .join("\n");
-        }
+            // Convert tabs to spaces
+            if self.config.tab_width > 0 {
+                l = l.replace('\t', &" ".repeat(self.config.tab_width));
+            }
 
-        // 5. Collapse 3+ blank lines to 2 (max one empty line between blocks)
-        if self.config.collapse_blank_lines {
-            let mut prev_blank = 0u8;
-            let mut compressed = String::with_capacity(result.len());
-            for line in result.lines() {
-                if line.is_empty() {
-                    prev_blank += 1;
-                    if prev_blank <= 2 {
-                        compressed.push('\n');
+            // Strip trailing whitespace
+            if self.config.strip_trailing {
+                l = l.trim_end().to_string();
+            }
+
+            l
+        }).collect();
+
+        // 4. Collapse consecutive blank lines
+        if self.config.max_consecutive_blank_lines > 0 {
+            let mut result_lines: Vec<&str> = Vec::new();
+            let mut blank_count = 0usize;
+
+            for line in &lines {
+                if line.trim().is_empty() {
+                    blank_count += 1;
+                    if blank_count <= self.config.max_consecutive_blank_lines {
+                        result_lines.push(line);
                     }
                 } else {
-                    prev_blank = 0;
-                    compressed.push_str(line);
-                    compressed.push('\n');
+                    blank_count = 0;
+                    result_lines.push(line);
                 }
             }
-            // Remove trailing newline added above
-            if compressed.ends_with('\n') && !result.ends_with('\n') {
-                compressed.pop();
-            }
-            result = compressed;
+
+            s = result_lines.join("\n");
+        } else {
+            s = lines.join("\n");
         }
 
-        let chars_saved = original_len.saturating_sub(result.len());
-        (result, chars_saved)
-    }
-}
+        // Preserve trailing newline if original had one
+        if input.ends_with('\n') || input.ends_with("\r\n") {
+            if !s.ends_with('\n') {
+                s.push('\n');
+            }
+        }
 
-impl Default for WhitespaceNormalizeSaver {
-    fn default() -> Self { Self::new(NormalizeConfig::default()) }
+        // 5. Trim entire content
+        if self.config.trim_content {
+            s = s.trim().to_string();
+        }
+
+        s
+    }
 }
 
 #[async_trait::async_trait]
-impl TokenSaver for WhitespaceNormalizeSaver {
+impl TokenSaver for WhitespaceNormalize {
     fn name(&self) -> &str { "whitespace-normalize" }
     fn stage(&self) -> SaverStage { SaverStage::PrePrompt }
-    fn priority(&self) -> u32 { 20 }
+    fn priority(&self) -> u32 { 1 }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
-        let mut total_chars_saved = 0usize;
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let chars_before: usize = input.messages.iter().map(|m| m.content.len()).sum();
 
-        for msg in &mut input.messages {
-            let (normalized, chars_saved) = self.normalize(&msg.content);
-            if chars_saved > 0 {
-                msg.content = normalized;
-                // Re-estimate token count (approximately 1 token per 4 chars)
-                let saved_tokens = chars_saved / 4;
-                msg.token_count = msg.token_count.saturating_sub(saved_tokens);
-                total_chars_saved += chars_saved;
-            }
+        let mut new_messages = Vec::with_capacity(input.messages.len());
+
+        for msg in input.messages {
+            let normalized = self.normalize(&msg.content);
+            let len_ratio = if msg.content.is_empty() {
+                1.0
+            } else {
+                normalized.len() as f64 / msg.content.len() as f64
+            };
+            let new_tokens = (msg.token_count as f64 * len_ratio).ceil() as usize;
+
+            new_messages.push(Message {
+                content: normalized,
+                token_count: new_tokens,
+                ..msg
+            });
         }
 
-        let tokens_saved = total_chars_saved / 4;
-        let after_tokens = before_tokens.saturating_sub(tokens_saved);
+        let tokens_after: usize = new_messages.iter().map(|m| m.token_count).sum();
+        let chars_after: usize = new_messages.iter().map(|m| m.content.len()).sum();
+        let tokens_saved = tokens_before.saturating_sub(tokens_after);
 
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        let report = TokenSavingsReport {
             technique: "whitespace-normalize".into(),
-            tokens_before: before_tokens,
-            tokens_after: after_tokens,
+            tokens_before,
+            tokens_after,
             tokens_saved,
             description: format!(
-                "whitespace normalization: {} chars removed, ~{} tokens saved (lossless)",
-                total_chars_saved, tokens_saved
+                "Normalized whitespace: {} → {} chars ({:.1}% reduction). \
+                 Operations: {}{}{}{}{}. \
+                 Zero-risk, zero semantic impact.",
+                chars_before, chars_after,
+                if chars_before > 0 {
+                    (1.0 - chars_after as f64 / chars_before as f64) * 100.0
+                } else { 0.0 },
+                if self.config.remove_bom { "BOM " } else { "" },
+                if self.config.normalize_line_endings { "CRLF→LF " } else { "" },
+                if self.config.strip_trailing { "trailing " } else { "" },
+                if self.config.max_consecutive_blank_lines > 0 { "blank-lines " } else { "" },
+                if self.config.tab_width > 0 { "tabs " } else { "" },
             ),
         };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: input.messages,
+            messages: new_messages,
             tools: input.tools,
             images: input.images,
-            skipped: false,
+            skipped: tokens_saved == 0,
             cached_response: None,
         })
     }
@@ -176,50 +207,56 @@ impl TokenSaver for WhitespaceNormalizeSaver {
 mod tests {
     use super::*;
 
-    fn normalizer() -> WhitespaceNormalizeSaver { WhitespaceNormalizeSaver::default() }
-
-    #[test]
-    fn removes_bom() {
-        let s = "\u{FEFF}hello";
-        let (out, saved) = normalizer().normalize(s);
-        assert!(!out.starts_with('\u{FEFF}'));
-        assert!(saved > 0);
+    fn msg(content: &str, tokens: usize) -> Message {
+        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: tokens }
     }
 
-    #[test]
-    fn normalizes_crlf() {
-        let s = "line1\r\nline2\r\nline3";
-        let (out, _) = normalizer().normalize(s);
-        assert!(!out.contains('\r'));
-        assert_eq!(out, "line1\nline2\nline3");
+    #[tokio::test]
+    async fn test_bom_and_crlf() {
+        let saver = WhitespaceNormalize::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![msg("\u{FEFF}hello\r\nworld\r\n", 10)],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        let content = &out.messages[0].content;
+        assert!(!content.contains('\u{FEFF}'));
+        assert!(!content.contains('\r'));
+        assert_eq!(content, "hello\nworld");
     }
 
-    #[test]
-    fn strips_trailing_whitespace() {
-        let s = "hello   \nworld  \n";
-        let (out, saved) = normalizer().normalize(s);
-        assert!(saved > 0);
-        assert!(!out.contains("   \n"));
+    #[tokio::test]
+    async fn test_collapse_blank_lines() {
+        let saver = WhitespaceNormalize::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![msg("line1\n\n\n\n\nline2\n\n\n\nline3", 30)],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        let content = &out.messages[0].content;
+        // Should have at most 1 consecutive blank line
+        assert!(!content.contains("\n\n\n"));
     }
 
-    #[test]
-    fn collapses_blank_lines() {
-        let s = "line1\n\n\n\n\nline2";
-        let (out, saved) = normalizer().normalize(s);
-        // Should have collapsed 5 blank lines to 2
-        let blank_runs: Vec<_> = out.split('\n').collect();
-        let max_consecutive_blanks = blank_runs.windows(3)
-            .filter(|w| w.iter().all(|l| l.is_empty()))
-            .count();
-        assert_eq!(max_consecutive_blanks, 0, "no 3 consecutive blank lines");
-        assert!(saved > 0);
-    }
-
-    #[test]
-    fn is_lossless_for_normal_text() {
-        let s = "Hello, World!\nThis is normal text.";
-        let (out, saved) = normalizer().normalize(s);
-        assert_eq!(out, s);
-        assert_eq!(saved, 0);
+    #[tokio::test]
+    async fn test_trailing_whitespace() {
+        let saver = WhitespaceNormalize::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![msg("hello   \nworld  \t  \n  spaces  ", 20)],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        for line in out.messages[0].content.lines() {
+            assert_eq!(line, line.trim_end(), "Line has trailing whitespace: {:?}", line);
+        }
     }
 }

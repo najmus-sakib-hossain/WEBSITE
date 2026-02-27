@@ -1,99 +1,92 @@
 //! # patch-prefer
 //!
-//! Instructs the model to output diffs/patches instead of full file rewrites.
-//! Injects a system-level instruction when file editing is detected.
+//! Instructs the model to output diffs/patches instead of full files —
+//! the single highest-impact token saver for coding agents.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL)
+//! - A 500-line file with a 3-line change: full = ~2000 tokens, diff = ~40 tokens = 98%
+//! - This is not hype — it's math
+//! - **Honest savings: 90-98% on code edits (the most common agent action)**
 //!
-//! - **REAL**: Highest-impact technique for coding agents — pure math.
-//! - 500-line file with a 3-line change:
-//!   - Full file output: ~2000 tokens
-//!   - Unified diff output: ~40 tokens  
-//!   - **Savings: 98%** on that change
-//! - Conservative estimate across mixed workloads: **90-98%** on file edits.
-//! - The saving is real as long as the model follows the instruction.
-//!   (Most frontier models do when prompted clearly.)
-//!
-//! ## How it works
-//! 1. Detects when the task involves editing existing files
-//! 2. Injects a clear system instruction to use unified diff format
-//! 3. The instruction is concise (15-20 tokens) to minimize overhead
-//!
-//! SAVINGS: 90-98% on file editing output tokens
 //! STAGE: PromptAssembly (priority 25)
 
 use dx_core::*;
 use std::sync::Mutex;
 
-/// The patch instruction injected into the system prompt.
-/// Kept concise to minimize the overhead of the instruction itself.
-const PATCH_INSTRUCTION: &str = "\
-[OUTPUT FORMAT] When editing files, output ONLY a unified diff (diff -u format). \
-Do NOT output the full file. Example:\n\
---- a/file.rs\n\
-+++ b/file.rs\n\
-@@ -10,4 +10,4 @@\n\
- existing line\n\
--old line\n\
-+new line\n\
- existing line\n\
-Apply patches with: patch -p1 < file.patch";
+/// Configuration for patch-prefer.
+#[derive(Debug, Clone)]
+pub struct PatchPreferConfig {
+    /// System prompt injection text to instruct diff-mode
+    pub diff_instruction: String,
+    /// Minimum file size (tokens) to request diff instead of full
+    pub min_file_tokens: usize,
+    /// Whether to add diff format examples
+    pub include_example: bool,
+}
 
-/// Signals that the task involves file editing (not just reading).
-const EDIT_SIGNALS: &[&str] = &[
-    "edit ", "change ", "modify ", "update ", "fix ", "refactor ",
-    "rename ", "move the ", "replace the ", "rewrite the ",
-    "add method", "add function", "add field", "add import",
-    "remove the ", "delete the ", "clean up",
-    "implement the ", "fill in the ",
-];
-
-/// Signals that suggest the task is read-only (don't inject patch instruction).
-const READ_SIGNALS: &[&str] = &[
-    "explain", "describe", "what is", "how does", "review", "analyze",
-    "show me", "list", "find all", "search for",
-];
+impl Default for PatchPreferConfig {
+    fn default() -> Self {
+        Self {
+            diff_instruction: concat!(
+                "IMPORTANT: When editing files, ALWAYS output a unified diff (patch) ",
+                "instead of the complete file. Use this exact format:\n",
+                "```diff\n",
+                "--- a/path/to/file\n",
+                "+++ b/path/to/file\n",
+                "@@ -start,count +start,count @@\n",
+                " context line\n",
+                "-removed line\n",
+                "+added line\n",
+                " context line\n",
+                "```\n",
+                "Include 3 lines of context before and after each change. ",
+                "NEVER output the entire file when only a few lines change. ",
+                "This saves 90-98% of output tokens on edits."
+            ).into(),
+            min_file_tokens: 100,
+            include_example: true,
+        }
+    }
+}
 
 pub struct PatchPreferSaver {
+    config: PatchPreferConfig,
     report: Mutex<TokenSavingsReport>,
 }
 
 impl PatchPreferSaver {
     pub fn new() -> Self {
-        Self { report: Mutex::new(TokenSavingsReport::default()) }
+        Self::with_config(PatchPreferConfig::default())
     }
 
-    /// Detect if the task involves editing code/files.
-    pub fn is_edit_task(messages: &[Message]) -> bool {
-        let last_user = messages.iter().rev()
-            .find(|m| m.role == "user")
-            .map(|m| m.content.to_lowercase())
-            .unwrap_or_default();
-
-        // If it's clearly read-only, don't inject
-        if READ_SIGNALS.iter().any(|s| last_user.starts_with(s) || last_user.contains(&format!(" {} ", s))) {
-            return false;
+    pub fn with_config(config: PatchPreferConfig) -> Self {
+        Self {
+            config,
+            report: Mutex::new(TokenSavingsReport::default()),
         }
-
-        EDIT_SIGNALS.iter().any(|s| last_user.contains(s))
     }
 
-    /// Check if the instruction is already present (avoid duplicating it).
-    pub fn instruction_already_present(messages: &[Message]) -> bool {
-        messages.iter().any(|m| m.role == "system" && m.content.contains("[OUTPUT FORMAT]"))
+    /// Check if the conversation context suggests file editing is happening.
+    fn editing_context(messages: &[Message]) -> bool {
+        messages.iter().any(|m| {
+            let lower = m.content.to_lowercase();
+            lower.contains("edit") || lower.contains("change") || lower.contains("modify")
+                || lower.contains("update") || lower.contains("fix")
+                || lower.contains("refactor") || lower.contains("replace")
+                || lower.contains("write_file") || lower.contains("create_file")
+        })
     }
 
-    /// Estimate output token savings from using diffs vs full files.
-    /// Conservative: assumes the edit affects ~2% of a typical 500-line file.
-    pub fn estimate_savings(output_token_estimate: usize) -> usize {
-        // A diff for a small edit is ~40 tokens vs ~2000 for the full file
-        // Conservative 90% savings estimate
-        (output_token_estimate as f64 * 0.90) as usize
+    /// Check if diff instruction already exists in system prompt.
+    fn has_diff_instruction(messages: &[Message]) -> bool {
+        messages.iter().any(|m| {
+            m.role == "system" && (
+                m.content.contains("unified diff")
+                || m.content.contains("ALWAYS output a")
+                || m.content.contains("patch format")
+            )
+        })
     }
-}
-
-impl Default for PatchPreferSaver {
-    fn default() -> Self { Self::new() }
 }
 
 #[async_trait::async_trait]
@@ -102,67 +95,72 @@ impl TokenSaver for PatchPreferSaver {
     fn stage(&self) -> SaverStage { SaverStage::PromptAssembly }
     fn priority(&self) -> u32 { 25 }
 
-    async fn process(&self, mut input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        if !Self::is_edit_task(&input.messages) || Self::instruction_already_present(&input.messages) {
-            let mut report = self.report.lock().unwrap();
-            *report = TokenSavingsReport {
-                technique: "patch-prefer".into(),
-                tokens_before: 0,
-                tokens_after: 0,
-                tokens_saved: 0,
-                description: "no edit task detected — patch instruction not injected".into(),
-            };
-            return Ok(SaverOutput {
-                messages: input.messages,
-                tools: input.tools,
-                images: input.images,
-                skipped: false,
-                cached_response: None,
-            });
+    async fn process(
+        &self,
+        input: SaverInput,
+        _ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let mut messages = input.messages;
+
+        // Only inject if editing context is detected and instruction not already present
+        let should_inject = Self::editing_context(&messages) && !Self::has_diff_instruction(&messages);
+
+        if should_inject {
+            // Find system message to append to, or create one
+            let sys_idx = messages.iter().position(|m| m.role == "system");
+
+            match sys_idx {
+                Some(idx) => {
+                    messages[idx].content.push_str("\n\n");
+                    messages[idx].content.push_str(&self.config.diff_instruction);
+                    let added_tokens = self.config.diff_instruction.len() / 4;
+                    messages[idx].token_count += added_tokens;
+                }
+                None => {
+                    let instruction_tokens = self.config.diff_instruction.len() / 4;
+                    messages.insert(0, Message {
+                        role: "system".into(),
+                        content: self.config.diff_instruction.clone(),
+                        images: vec![],
+                        tool_call_id: None,
+                        token_count: instruction_tokens,
+                    });
+                }
+            }
         }
 
-        // Inject the patch instruction into the system prompt
-        let instruction_tokens = PATCH_INSTRUCTION.len() / 4;
+        let tokens_after: usize = messages.iter().map(|m| m.token_count).sum();
+        // Note: patch-prefer ADDS a small number of instruction tokens but
+        // the savings come from the model outputting diffs instead of full files.
+        // Estimated savings: for a typical edit on a 500-line file,
+        // ~2000 output tokens → ~40 diff tokens = 98% output savings.
 
-        if let Some(sys) = input.messages.iter_mut().find(|m| m.role == "system") {
-            // Append to existing system message
-            sys.content.push('\n');
-            sys.content.push_str(PATCH_INSTRUCTION);
-            sys.token_count += instruction_tokens;
-        } else {
-            // Create a new system message
-            input.messages.insert(0, Message {
-                role: "system".into(),
-                content: PATCH_INSTRUCTION.to_string(),
-                images: vec![],
-                tool_call_id: None,
-                token_count: instruction_tokens,
-            });
-        }
+        // We report the estimated output savings, not input cost
+        let estimated_output_savings = if should_inject { 1500 } else { 0 }; // conservative estimate
 
-        // Estimate output savings: typical file rewrite is ~2000 tokens,
-        // a diff is ~40 tokens = 98% savings. Use conservative 90%.
-        let typical_file_rewrite_tokens = 2000usize;
-        let diff_tokens = 40usize;
-        let saved = typical_file_rewrite_tokens.saturating_sub(diff_tokens);
-
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        let report = TokenSavingsReport {
             technique: "patch-prefer".into(),
-            tokens_before: typical_file_rewrite_tokens,
-            tokens_after: diff_tokens,
-            tokens_saved: saved,
-            description: format!(
-                "patch instruction injected ({} cost tokens). Estimated output savings: ~{}% ({} -> {} tokens per edit)",
-                instruction_tokens,
-                saved * 100 / typical_file_rewrite_tokens,
-                typical_file_rewrite_tokens,
-                diff_tokens
-            ),
+            tokens_before,
+            tokens_after,
+            tokens_saved: estimated_output_savings,
+            description: if should_inject {
+                format!(
+                    "Injected diff-mode instruction (+{} input tokens). \
+                     Expected output savings: ~90-98% per file edit. \
+                     A 500-line file edit: ~2000 → ~40 output tokens.",
+                    self.config.diff_instruction.len() / 4
+                )
+            } else if Self::has_diff_instruction(&messages) {
+                "Diff instruction already present. No injection needed.".into()
+            } else {
+                "No editing context detected. Skipped diff instruction injection.".into()
+            },
         };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
-            messages: input.messages,
+            messages,
             tools: input.tools,
             images: input.images,
             skipped: false,
@@ -179,39 +177,44 @@ impl TokenSaver for PatchPreferSaver {
 mod tests {
     use super::*;
 
-    fn user_msg(content: &str) -> Message {
-        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: 20 }
-    }
-
     fn sys_msg(content: &str) -> Message {
-        Message { role: "system".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: 30 }
+        Message { role: "system".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: content.len() / 4 }
+    }
+    fn user_msg(content: &str) -> Message {
+        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: content.len() / 4 }
     }
 
-    #[test]
-    fn detects_edit_tasks() {
-        assert!(PatchPreferSaver::is_edit_task(&[user_msg("edit the main function to add error handling")]));
-        assert!(PatchPreferSaver::is_edit_task(&[user_msg("fix the bug in line 42")]));
-        assert!(PatchPreferSaver::is_edit_task(&[user_msg("refactor the auth module")]));
+    #[tokio::test]
+    async fn test_injects_diff_instruction() {
+        let saver = PatchPreferSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![
+                sys_msg("You are a helpful coding assistant."),
+                user_msg("Please edit the file src/main.rs to fix the bug."),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert!(out.messages[0].content.contains("unified diff"));
     }
 
-    #[test]
-    fn does_not_inject_for_read_tasks() {
-        assert!(!PatchPreferSaver::is_edit_task(&[user_msg("explain how this code works")]));
-        assert!(!PatchPreferSaver::is_edit_task(&[user_msg("review the entire codebase")]));
-    }
-
-    #[test]
-    fn does_not_duplicate_instruction() {
-        let msgs = vec![sys_msg("[OUTPUT FORMAT] use diffs already here")];
-        assert!(PatchPreferSaver::instruction_already_present(&msgs));
-    }
-
-    #[test]
-    fn savings_at_least_90_percent() {
-        // Verify our conservative estimate is ≥90%
-        let full_file = 2000usize;
-        let diff = 40usize;
-        let savings_pct = (full_file - diff) * 100 / full_file;
-        assert!(savings_pct >= 90, "patch savings should be ≥90% per TOKEN.md math");
+    #[tokio::test]
+    async fn test_no_injection_without_edit_context() {
+        let saver = PatchPreferSaver::new();
+        let ctx = SaverContext::default();
+        let input = SaverInput {
+            messages: vec![
+                sys_msg("You are helpful."),
+                user_msg("What is the capital of France?"),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert!(!out.messages[0].content.contains("unified diff"));
     }
 }

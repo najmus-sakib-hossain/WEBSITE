@@ -1,139 +1,178 @@
 //! # dedup
 //!
-//! Deduplicates identical and near-identical tool call results across turns.
-//! When an agent reads the same file twice, the second result is replaced
-//! with a reference back to the first.
+//! Eliminates duplicate tool calls and outputs — agents frequently
+//! re-read the same file or re-run the same command.
 //!
-//! ## Verified Savings (TOKEN.md research)
+//! ## Evidence (TOKEN.md ✅ REAL)
+//! - Agents frequently re-read the same file or re-run the same command
+//! - Deduplicating identical tool outputs is pure win, zero quality loss
+//! - **Honest savings: 20-50% in agentic workflows**
 //!
-//! - **REAL**: Agents frequently re-read the same file or re-run the same command.
-//! - Deduplicating identical tool outputs is pure win with zero quality loss.
-//! - **20-50%** savings in agentic workflows (honest range).
-//! - Zero quality risk: the reference tells the model "same as turn N".
-//!
-//! SAVINGS: 20-50% on duplicate tool call tokens
-//! STAGE: InterTurn (priority 10)
+//! STAGE: PostResponse (priority 25)
 
 use dx_core::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Configuration for deduplication.
+#[derive(Debug, Clone)]
+pub struct DedupConfig {
+    /// How many turns back to check for duplicates
+    pub lookback_turns: usize,
+    /// Minimum token count for a message to be worth dedup checking
+    pub min_tokens: usize,
+    /// Whether to keep a short reference when deduplicating
+    pub keep_reference: bool,
+    /// Maximum number of tracked hashes
+    pub max_tracked: usize,
+}
+
+impl Default for DedupConfig {
+    fn default() -> Self {
+        Self {
+            lookback_turns: 10,
+            min_tokens: 50,
+            keep_reference: true,
+            max_tracked: 500,
+        }
+    }
+}
+
+/// Tracks seen content hashes for dedup.
+#[derive(Debug, Default)]
+struct DedupTracker {
+    /// content_hash → (turn_number, tool_call_id, original_tokens)
+    seen: HashMap<blake3::Hash, (usize, Option<String>, usize)>,
+}
+
 pub struct DedupSaver {
+    config: DedupConfig,
+    tracker: Mutex<DedupTracker>,
     report: Mutex<TokenSavingsReport>,
 }
 
 impl DedupSaver {
     pub fn new() -> Self {
-        Self { report: Mutex::new(TokenSavingsReport::default()) }
+        Self::with_config(DedupConfig::default())
     }
 
-    /// Compute a content hash for quick exact-match detection.
-    fn content_hash(content: &str) -> u64 {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        content.hash(&mut hasher);
-        hasher.finish()
-    }
-
-    /// Deduplicate tool result messages.
-    /// Returns the modified messages and count of deduplication savings.
-    pub fn dedup_messages(messages: Vec<Message>) -> (Vec<Message>, usize) {
-        // Map: content_hash -> turn index where we first saw this content
-        let mut seen: HashMap<u64, (usize, String)> = HashMap::new();
-        let mut total_saved = 0usize;
-        let mut result = Vec::with_capacity(messages.len());
-
-        for (i, mut msg) in messages.into_iter().enumerate() {
-            if msg.role != "tool" {
-                result.push(msg);
-                continue;
-            }
-
-            // Only dedup non-trivial content (>50 chars means real output)
-            if msg.content.len() < 50 {
-                result.push(msg);
-                continue;
-            }
-
-            let hash = Self::content_hash(&msg.content);
-
-            if let Some((first_turn, first_id)) = seen.get(&hash) {
-                // Exact duplicate found — replace with reference
-                let original_tokens = msg.token_count;
-                let ref_content = format!(
-                    "[DEDUP: identical to tool result at turn {} ({}). {} tokens saved]",
-                    first_turn + 1,
-                    first_id,
-                    original_tokens
-                );
-                total_saved += original_tokens.saturating_sub(ref_content.len() / 4 + 5);
-                msg.token_count = ref_content.len() / 4 + 5;
-                msg.content = ref_content;
-            } else {
-                let tool_id = msg.tool_call_id.clone().unwrap_or_else(|| format!("turn-{}", i));
-                seen.insert(hash, (i, tool_id));
-            }
-
-            result.push(msg);
+    pub fn with_config(config: DedupConfig) -> Self {
+        Self {
+            config,
+            tracker: Mutex::new(DedupTracker::default()),
+            report: Mutex::new(TokenSavingsReport::default()),
         }
-
-        (result, total_saved)
     }
 
-    /// Deduplicate based on (role, tool_call_id) pairs — catches re-runs with same ID.
-    pub fn dedup_by_tool_call_id(messages: Vec<Message>) -> Vec<Message> {
-        let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        let mut result = Vec::new();
-
-        for msg in messages {
-            if msg.role == "tool" {
-                if let Some(ref id) = msg.tool_call_id {
-                    if seen_ids.contains(id.as_str()) {
-                        // Skip duplicate tool_call_id
-                        continue;
-                    }
-                    seen_ids.insert(id.clone());
-                }
-            }
-            result.push(msg);
-        }
-        result
+    /// Reset tracker (e.g., on new conversation).
+    pub fn reset(&self) {
+        self.tracker.lock().unwrap().seen.clear();
     }
-}
 
-impl Default for DedupSaver {
-    fn default() -> Self { Self::new() }
+    /// Hash the content of a message for dedup detection.
+    fn hash_content(content: &str) -> blake3::Hash {
+        blake3::hash(content.as_bytes())
+    }
 }
 
 #[async_trait::async_trait]
 impl TokenSaver for DedupSaver {
     fn name(&self) -> &str { "dedup" }
-    fn stage(&self) -> SaverStage { SaverStage::InterTurn }
-    fn priority(&self) -> u32 { 10 }
+    fn stage(&self) -> SaverStage { SaverStage::PostResponse }
+    fn priority(&self) -> u32 { 25 }
 
-    async fn process(&self, input: SaverInput, _ctx: &SaverContext) -> Result<SaverOutput, SaverError> {
-        let before_tokens: usize = input.messages.iter().map(|m| m.token_count).sum();
+    async fn process(
+        &self,
+        input: SaverInput,
+        ctx: &SaverContext,
+    ) -> Result<SaverOutput, SaverError> {
+        let tokens_before: usize = input.messages.iter().map(|m| m.token_count).sum();
+        let mut messages = input.messages;
+        let mut deduped_count = 0usize;
+        let mut tokens_saved_total = 0usize;
 
-        // Step 1: Remove duplicate tool_call_ids
-        let messages = Self::dedup_by_tool_call_id(input.messages);
+        let turn = ctx.turn_number;
+        let mut tracker = self.tracker.lock().unwrap();
 
-        // Step 2: Replace duplicate content with references
-        let (messages, content_saved) = Self::dedup_messages(messages);
+        // Evict old entries beyond lookback window
+        let cutoff = turn.saturating_sub(self.config.lookback_turns);
+        tracker.seen.retain(|_, (t, _, _)| *t >= cutoff);
 
-        let after_tokens: usize = messages.iter().map(|m| m.token_count).sum();
-        let total_saved = before_tokens.saturating_sub(after_tokens) + content_saved;
+        // Limit tracker size
+        while tracker.seen.len() > self.config.max_tracked {
+            // Remove the oldest entries
+            if let Some(oldest_hash) = tracker.seen.iter()
+                .min_by_key(|(_, (t, _, _))| *t)
+                .map(|(h, _)| *h)
+            {
+                tracker.seen.remove(&oldest_hash);
+            } else {
+                break;
+            }
+        }
 
-        let mut report = self.report.lock().unwrap();
-        *report = TokenSavingsReport {
+        for msg in &mut messages {
+            // Only dedup tool outputs and long assistant messages
+            if msg.token_count < self.config.min_tokens {
+                continue;
+            }
+            if msg.role != "tool" && msg.role != "assistant" {
+                continue;
+            }
+
+            let hash = Self::hash_content(&msg.content);
+
+            if let Some((orig_turn, orig_id, _orig_tokens)) = tracker.seen.get(&hash) {
+                // Duplicate found
+                let ref_text = if self.config.keep_reference {
+                    format!(
+                        "[Duplicate output — same as turn {}{}, {} tokens. Content deduplicated.]",
+                        orig_turn,
+                        orig_id.as_ref().map_or(String::new(), |id| format!(" ({})", id)),
+                        msg.token_count
+                    )
+                } else {
+                    "[Duplicate output removed.]".into()
+                };
+
+                let old_tokens = msg.token_count;
+                let new_tokens = ref_text.len() / 4 + 5;
+                tokens_saved_total += old_tokens.saturating_sub(new_tokens);
+                msg.content = ref_text;
+                msg.token_count = new_tokens;
+                deduped_count += 1;
+            } else {
+                // Register this content
+                tracker.seen.insert(
+                    hash,
+                    (turn, msg.tool_call_id.clone(), msg.token_count),
+                );
+            }
+        }
+
+        drop(tracker);
+
+        let tokens_after = tokens_before.saturating_sub(tokens_saved_total);
+        let pct = if tokens_before > 0 {
+            tokens_saved_total as f64 / tokens_before as f64 * 100.0
+        } else { 0.0 };
+
+        let report = TokenSavingsReport {
             technique: "dedup".into(),
-            tokens_before: before_tokens,
-            tokens_after: after_tokens,
-            tokens_saved: total_saved,
-            description: format!(
-                "deduplication: {} -> {} tokens ({} saved via content dedup)",
-                before_tokens, after_tokens, total_saved
-            ),
+            tokens_before,
+            tokens_after,
+            tokens_saved: tokens_saved_total,
+            description: if deduped_count > 0 {
+                format!(
+                    "Deduplicated {} identical outputs: {} → {} tokens ({:.1}% saved). \
+                     Zero quality loss — content is byte-for-byte identical.",
+                    deduped_count, tokens_before, tokens_after, pct
+                )
+            } else {
+                "No duplicate outputs detected.".into()
+            },
         };
+        *self.report.lock().unwrap() = report;
 
         Ok(SaverOutput {
             messages,
@@ -153,56 +192,48 @@ impl TokenSaver for DedupSaver {
 mod tests {
     use super::*;
 
-    fn tool_msg(content: &str, id: &str) -> Message {
+    fn tool_msg(content: &str, tokens: usize) -> Message {
         Message {
             role: "tool".into(),
             content: content.into(),
             images: vec![],
-            tool_call_id: Some(id.into()),
-            token_count: content.len() / 4 + 10,
+            tool_call_id: Some("tc_1".into()),
+            token_count: tokens,
         }
     }
 
-    fn user_msg(content: &str) -> Message {
-        Message { role: "user".into(), content: content.into(), images: vec![], tool_call_id: None, token_count: 10 }
+    #[tokio::test]
+    async fn test_no_dedup_different_content() {
+        let saver = DedupSaver::new();
+        let ctx = SaverContext { turn_number: 1, ..Default::default() };
+        let input = SaverInput {
+            messages: vec![
+                tool_msg("output A", 100),
+                tool_msg("output B", 100),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let _ = saver.process(input, &ctx).await.unwrap();
+        assert_eq!(saver.last_savings().tokens_saved, 0);
     }
 
-    #[test]
-    fn deduplicates_identical_tool_results() {
-        let content = "fn main() { println!(\"Hello, world!\"); }";
-        let msgs = vec![
-            user_msg("read main.rs"),
-            tool_msg(content, "call-1"),
-            user_msg("read main.rs again"),
-            tool_msg(content, "call-2"), // duplicate content
-        ];
-        let (out, saved) = DedupSaver::dedup_messages(msgs);
-        // Last tool message should be replaced with reference
-        assert!(out.last().unwrap().content.contains("[DEDUP:"));
-        assert!(saved > 0);
-    }
-
-    #[test]
-    fn dedup_by_same_tool_call_id() {
-        let msgs = vec![
-            user_msg("hi"),
-            tool_msg("result", "call-42"),
-            tool_msg("result again", "call-42"), // same ID
-        ];
-        let out = DedupSaver::dedup_by_tool_call_id(msgs);
-        let tool_msgs: Vec<_> = out.iter().filter(|m| m.role == "tool").collect();
-        assert_eq!(tool_msgs.len(), 1, "second tool message with same ID should be removed");
-    }
-
-    #[test]
-    fn does_not_dedup_short_content() {
-        // Very short tool results (errors, "ok", etc.) are not deduped
-        let msgs = vec![
-            tool_msg("ok", "c1"),
-            tool_msg("ok", "c2"),
-        ];
-        let (out, saved) = DedupSaver::dedup_messages(msgs);
-        assert_eq!(out.len(), 2, "short content should not be deduped");
-        assert_eq!(saved, 0);
+    #[tokio::test]
+    async fn test_dedup_identical_content() {
+        let saver = DedupSaver::new();
+        let ctx = SaverContext { turn_number: 1, ..Default::default() };
+        let input = SaverInput {
+            messages: vec![
+                tool_msg("identical output content here", 200),
+                tool_msg("identical output content here", 200),
+            ],
+            tools: vec![],
+            images: vec![],
+            turn_number: 1,
+        };
+        let out = saver.process(input, &ctx).await.unwrap();
+        assert!(saver.last_savings().tokens_saved > 0);
+        assert!(out.messages[1].content.contains("Duplicate"));
     }
 }
